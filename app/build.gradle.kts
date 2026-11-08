@@ -39,6 +39,20 @@ android {
 
     buildConfigField("String", "OPENSUBTITLES_API_KEY", "\"$escapedOpenSubtitlesApiKey\"")
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    ndk {
+      abiFilters.clear()
+      abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+    }
+  }
+
+  packaging {
+    jniLibs {
+      excludes += listOf(
+        "lib/x86/**",
+        "lib/x86_64/**"
+      )
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
