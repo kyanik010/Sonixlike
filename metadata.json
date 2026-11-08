@@ -1,0 +1,6 @@
+{
+  "name": "SONIX TV",
+  "description": "تطبيق SONIX TV الاحترافي للبث التلفزيوني المباشر IPTV مع نظام الصوت الخارجي المزدوج المستقل ودعم الريموت والمفضلة و EPG",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

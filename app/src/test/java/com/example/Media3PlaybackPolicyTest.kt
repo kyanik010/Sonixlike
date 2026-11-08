@@ -1,0 +1,145 @@
+package com.example
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * JVM unit tests for Media3PlaybackPolicy ported directly from Lumen-App.
+ */
+class Media3PlaybackPolicyTest {
+
+    @Test
+    fun balancedLiveBuildsACushionBeforeStarting() {
+        val buffers = Media3PlaybackPolicy.buffers(
+            isLive = true,
+            mode = Media3PlaybackMode.BALANCED
+        )
+        assertEquals(30_000, buffers.minBufferMs)
+        assertEquals(60_000, buffers.maxBufferMs)
+        assertEquals(2_000, buffers.bufferForPlaybackMs)
+        assertEquals(4_000, buffers.bufferForPlaybackAfterRebufferMs)
+        assertEquals(0, buffers.backBufferMs)
+        assertFalse(buffers.retainBackBufferFromKeyframe)
+    }
+
+    @Test
+    fun liveModesExposeIntentionalLatencyStabilityTradeoffs() {
+        val stable = Media3PlaybackPolicy.buffers(
+            isLive = true,
+            mode = Media3PlaybackMode.STABLE
+        )
+        val lowLatency = Media3PlaybackPolicy.buffers(
+            isLive = true,
+            mode = Media3PlaybackMode.LOW_LATENCY
+        )
+        assertEquals(6_000, stable.bufferForPlaybackMs)
+        assertEquals(8_000, stable.bufferForPlaybackAfterRebufferMs)
+        assertEquals(90_000, stable.maxBufferMs)
+        assertEquals(500, lowLatency.bufferForPlaybackMs)
+        assertEquals(1_000, lowLatency.bufferForPlaybackAfterRebufferMs)
+        assertEquals(20_000, lowLatency.maxBufferMs)
+        assertEquals(
+            Media3PlaybackMode.LOW_LATENCY,
+            Media3PlaybackMode.from("lowLatency")
+        )
+        assertEquals(
+            Media3PlaybackMode.BALANCED,
+            Media3PlaybackMode.from("unknown")
+        )
+    }
+
+    @Test
+    fun liveFallsBackOnlyOnceToADifferentAvailableSource() {
+        assertTrue(
+            Media3PlaybackPolicy.shouldTryAlternate(
+                isLive = true,
+                usingAlternateSource = false,
+                currentUrl = "https://provider.example/live/1.m3u8",
+                alternateUrl = "https://provider.example/live/1.ts"
+            )
+        )
+        assertFalse(
+            Media3PlaybackPolicy.shouldTryAlternate(
+                isLive = true,
+                usingAlternateSource = true,
+                currentUrl = "https://provider.example/live/1.ts",
+                alternateUrl = "https://provider.example/live/1.ts"
+            )
+        )
+        assertFalse(
+            Media3PlaybackPolicy.shouldTryAlternate(
+                isLive = false,
+                usingAlternateSource = false,
+                currentUrl = "https://provider.example/movie/1.mp4",
+                alternateUrl = "https://provider.example/movie/1.mkv"
+            )
+        )
+    }
+
+    @Test
+    fun liveConnectionCopyDistinguishesOpeningFromRecovery() {
+        assertEquals(
+            "Connecting to live stream…",
+            Media3PlaybackPolicy.bufferingLabel(isLive = true, reconnecting = false)
+        )
+        assertEquals(
+            "Reconnecting to live stream…",
+            Media3PlaybackPolicy.bufferingLabel(isLive = true, reconnecting = true)
+        )
+    }
+
+    @Test
+    fun televisionSeekFeedbackUsesThePhysicalSeekSide() {
+        assertEquals(
+            SeekFeedbackSide.LEFT,
+            Media3PlaybackPolicy.seekFeedbackSide(-10_000L, isTelevision = true)
+        )
+        assertEquals(
+            SeekFeedbackSide.RIGHT,
+            Media3PlaybackPolicy.seekFeedbackSide(10_000L, isTelevision = true)
+        )
+        assertEquals(
+            SeekFeedbackSide.CENTER,
+            Media3PlaybackPolicy.seekFeedbackSide(10_000L, isTelevision = false)
+        )
+    }
+
+    @Test
+    fun heldSeekAcceleratesFromSecondsIntoControlledMinuteStages() {
+        assertEquals(10_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 0))
+        assertEquals(60_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 1))
+        assertEquals(60_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 8))
+        assertEquals(120_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 9))
+        assertEquals(180_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 17))
+    }
+
+    @Test
+    fun onDemandResumesFromTheNewestKnownPositionWhileLiveStartsAtEdge() {
+        assertEquals(
+            420_000L,
+            Media3PlaybackPolicy.resumePositionMs(
+                isLive = false,
+                savedPositionMs = 300_000L,
+                sessionPositionMs = 420_000L
+            )
+        )
+        assertEquals(
+            300_000L,
+            Media3PlaybackPolicy.resumePositionMs(
+                isLive = false,
+                savedPositionMs = 300_000L,
+                sessionPositionMs = 10_000L
+            )
+        )
+        assertEquals(
+            0L,
+            Media3PlaybackPolicy.resumePositionMs(
+                isLive = true,
+                savedPositionMs = 300_000L,
+                sessionPositionMs = 420_000L
+            )
+        )
+    }
+}

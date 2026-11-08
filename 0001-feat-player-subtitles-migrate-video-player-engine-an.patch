@@ -1,0 +1,1156 @@
+From 38eb97b91cc2e9c062d9baf0138afacf086c0284 Mon Sep 17 00:00:00 2001
+From: kyanik010 <kyanalkram@gmail.com>
+Date: Sun, 8 Nov 2026 00:49:03 +0000
+Subject: [PATCH] feat(player,subtitles): migrate video player engine and full
+ subtitle pipeline from Lumen-App
+
+---
+ app/build.gradle.kts                          |  10 +-
+ app/src/main/assets/addons-subtitles.js       |  99 +++++--
+ .../com/example/LiveReconnectDataSource.kt    | 120 ++++++++
+ app/src/main/java/com/example/MainActivity.kt | 127 +++++++--
+ .../java/com/example/Media3PlaybackPolicy.kt  | 122 ++++++++
+ .../java/com/example/OpenSubtitlesClient.kt   | 260 ++++++++++++++++++
+ .../main/java/com/example/TvPlaybackProbe.kt  |  57 ++++
+ .../com/example/Media3PlaybackPolicyTest.kt   | 145 ++++++++++
+ 8 files changed, 887 insertions(+), 53 deletions(-)
+ create mode 100644 app/src/main/java/com/example/LiveReconnectDataSource.kt
+ create mode 100644 app/src/main/java/com/example/Media3PlaybackPolicy.kt
+ create mode 100644 app/src/main/java/com/example/OpenSubtitlesClient.kt
+ create mode 100644 app/src/main/java/com/example/TvPlaybackProbe.kt
+ create mode 100644 app/src/test/java/com/example/Media3PlaybackPolicyTest.kt
+
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index ac89751..39758e0 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -86,11 +86,11 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
+ dependencies {
+   // Android WorkManager: periodic, network-constrained catalog refresh while the app is closed.
+   implementation("androidx.work:work-runtime-ktx:2.10.1")
+-  // AndroidX Media3 ExoPlayer for IPTV live streaming, HLS, DASH, VOD and UI
+-  implementation("androidx.media3:media3-exoplayer:1.5.1")
+-  implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
+-  implementation("androidx.media3:media3-exoplayer-dash:1.5.1")
+-  implementation("androidx.media3:media3-ui:1.5.1")
++  // AndroidX Media3 ExoPlayer engine from Lumen-App for IPTV live streaming, HLS, DASH, VOD and UI
++  implementation("androidx.media3:media3-exoplayer:1.10.0")
++  implementation("androidx.media3:media3-exoplayer-hls:1.10.0")
++  implementation("androidx.media3:media3-exoplayer-dash:1.10.0")
++  implementation("androidx.media3:media3-ui:1.10.0")
+ 
+   // Core AndroidX and Jetpack Compose libraries
+   implementation(platform(libs.androidx.compose.bom))
+diff --git a/app/src/main/assets/addons-subtitles.js b/app/src/main/assets/addons-subtitles.js
+index 9ae50fc..3437175 100644
+--- a/app/src/main/assets/addons-subtitles.js
++++ b/app/src/main/assets/addons-subtitles.js
+@@ -332,36 +332,83 @@
+     if (!list) return;
+     subtitleBusy = true;
+     list.replaceChildren();
+-    if (status) status.textContent = 'جارٍ البحث في مصادر الترجمة المثبتة...';
++    if (status) status.textContent = 'جارٍ البحث في مصادر الترجمة...';
+     try {
+       const identity = activeIdentity();
+-      const imdb = await resolveImdb(identity);
+-      const addons = installed.filter(x => x.enabled !== false && (x.resources || []).some(r => String(r).toLowerCase() === 'subtitles'));
+-      if (!addons.length) throw new Error('لا توجد إضافات ترجمة مفعّلة. افتح Addons لتثبيت مصدر ترجمة.');
+       const results = [];
+-      for (const addon of addons) {
++      const seen = new Set();
++
++      const rawTitle = identity.title || '';
++      const cleanTitle = rawTitle
++        .replace(/^(?:\[[A-Za-z0-9_-]+\]|\|[A-Za-z0-9_-]+\||[A-Za-z]{2,3}\s*[:\-|])\s*/g, '')
++        .replace(/\b(?:4k|uhd|fhd|hd|sd|1080p|720p|2160p|h264|h265|hevc|x264|x265|web-?dl|bluray|rip|aac|mp3|dubbed|subbed)\b/gi, '')
++        .replace(/(?:مترجم|مدبلج|نسخة|أصلية|حصريا|جودة|عالية|كاملة)/g, '')
++        .replace(/\[.*?\]|\(.*?\)|[\{|\}]/g, ' ')
++        .replace(/\s+/g, ' ').trim() || rawTitle;
++
++      // 1. Direct OpenSubtitles API search from Lumen-App engine
++      if (window.NativePlayback && typeof window.NativePlayback.searchSubtitlesAsync === 'function') {
+         try {
+-          const base = addon.url.replace(/\/manifest\.json(?:\?.*)?$/,'').replace(/\/+$/,'');
+-          const url = base + '/subtitles/' + imdb.type + '/' + encodeURIComponent(imdb.resourceId) + '.json';
+-          const payload = await nativeJson(url);
+-          const rows = payload && Array.isArray(payload.subtitles) ? payload.subtitles : [];
+-          rows.forEach(row => {
+-            const lang = normalizeLang(row.lang);
+-            if (subtitleLanguage !== 'all' && lang !== subtitleLanguage && !lang.startsWith(subtitleLanguage+'-')) return;
+-            if (!/^https?:\/\//i.test(String(row.url || ''))) return;
+-            results.push({url:row.url,label:row.label || row.lang || addon.name,language:lang,addon:addon.name});
+-          });
+-        } catch (error) { console.warn('Subtitle addon failed: '+addon.name,error); }
++          const openSubsData = await nativeRequest('searchSubtitlesAsync', [cleanTitle, subtitleLanguage]);
++          if (openSubsData && openSubsData.success && Array.isArray(openSubsData.results)) {
++            openSubsData.results.forEach(sub => {
++              const url = sub.downloadUrl || ('opensubtitles://' + sub.fileId);
++              if (!seen.has(url)) {
++                seen.add(url);
++                results.push({
++                  url: url,
++                  label: sub.name || ('OpenSubtitles · ' + sub.langName),
++                  language: normalizeLang(sub.iso || subtitleLanguage),
++                  addon: 'OpenSubtitles'
++                });
++              }
++            });
++          }
++        } catch (e) {
++          console.warn('Native OpenSubtitles search error:', e);
++        }
+       }
+-      const seen = new Set();
+-      subtitleResults = results.filter(x => {
+-        const key = x.url;
+-        if (seen.has(key)) return false;
+-        seen.add(key); return true;
+-      });
++
++      // 2. Query configured Stremio subtitle addons
++      try {
++        const imdb = await resolveImdb(identity);
++        const addons = installed.filter(x => x.enabled !== false && (x.resources || []).some(r => String(r).toLowerCase() === 'subtitles'));
++        for (const addon of addons) {
++          try {
++            const base = addon.url.replace(/\/manifest\.json(?:\?.*)?$/,'').replace(/\/+$/,'');
++            const url = base + '/subtitles/' + imdb.type + '/' + encodeURIComponent(imdb.resourceId) + '.json';
++            const payload = await nativeJson(url);
++            const rows = payload && Array.isArray(payload.subtitles) ? payload.subtitles : [];
++            rows.forEach(row => {
++              const lang = normalizeLang(row.lang);
++              if (subtitleLanguage !== 'all' && lang !== subtitleLanguage && !lang.startsWith(subtitleLanguage+'-')) return;
++              if (!/^https?:\/\//i.test(String(row.url || ''))) return;
++              const key = row.url;
++              if (!seen.has(key)) {
++                seen.add(key);
++                results.push({
++                  url: row.url,
++                  label: row.label || row.lang || addon.name,
++                  language: lang,
++                  addon: addon.name
++                });
++              }
++            });
++          } catch (error) { console.warn('Subtitle addon failed: ' + addon.name, error); }
++        }
++      } catch (imdbErr) {
++        console.warn('IMDb resolution skipped or failed:', imdbErr);
++      }
++
++      subtitleResults = results;
+       subtitleResults.sort((a,b) => (a.language === subtitleLanguage ? -1 : 0) - (b.language === subtitleLanguage ? -1 : 0));
+       renderSubtitleResults();
+-      if (status) status.textContent = subtitleResults.length ? 'تم العثور على ' + subtitleResults.length + ' ترجمة' : 'لم يتم العثور على ترجمة لهذه اللغة.';
++
++      if (status) {
++        status.textContent = subtitleResults.length
++          ? 'تم العثور على ' + subtitleResults.length + ' ترجمة'
++          : 'لم يتم العثور على ترجمة لهذه اللغة. جرّب اختيار (الكل) أو إضافة ملف ترجمة محلي.';
++      }
+     } catch (error) {
+       if (status) status.textContent = error.message || 'تعذر البحث عن الترجمة.';
+     } finally { subtitleBusy = false; }
+@@ -466,13 +513,13 @@
+           b.className = 'subtitle-action-status';
+         }
+       });
+-      statusBadge.textContent = '✓ مفعّلة';
++      statusBadge.textContent = '✓ مفعّلة حالياً';
+       statusBadge.className = 'subtitle-action-status active';
+       currentSubtitleLabel = entry.label;
+       updateSubtitleStateUI(true, entry.label, true);
+       const status = document.getElementById('subtitle-search-status');
+-      if (status) status.textContent = 'تم تطبيق الترجمة: ' + entry.label;
+-      if (typeof showToast === 'function') showToast('تم تحميل الترجمة وتفعيلها');
++      if (status) status.textContent = 'تم تفعيل الترجمة وظهورها على الفيديو: ' + entry.label;
++      if (typeof showToast === 'function') showToast('تم تنزيل الترجمة وتفعيلها على الفيديو');
+     } catch (error) {
+       card.disabled = false;
+       statusBadge.textContent = error.stage === 'activation' ? 'تم التنزيل' : 'فشل';
+diff --git a/app/src/main/java/com/example/LiveReconnectDataSource.kt b/app/src/main/java/com/example/LiveReconnectDataSource.kt
+new file mode 100644
+index 0000000..c2777cb
+--- /dev/null
++++ b/app/src/main/java/com/example/LiveReconnectDataSource.kt
+@@ -0,0 +1,120 @@
++package com.example
++
++import android.net.Uri
++import android.os.SystemClock
++import androidx.media3.common.C
++import androidx.media3.datasource.DataSource
++import androidx.media3.datasource.DataSpec
++import androidx.media3.datasource.TransferListener
++import java.io.EOFException
++import java.io.IOException
++
++/**
++ * Joins short, successful HTTP responses from endless MPEG-TS endpoints.
++ * Ported from Lumen-App.
++ *
++ * Some IPTV servers intentionally close a live response after only a few
++ * seconds. Exposing that EOF to Media3 ends the item and discards its useful
++ * forward buffer. This wrapper closes and reopens the same non-seekable URL on
++ * the loader thread before Media3 sees EOF, so playback can consume the data
++ * already buffered while the next response starts.
++ */
++internal class LiveReconnectDataSource(
++    private val upstreamFactory: DataSource.Factory,
++    private val reconnectDelayMs: Long,
++    private val shouldReconnectAtEof: () -> Boolean,
++    private val maxEmptyResponses: Int = 3
++) : DataSource {
++
++    class Factory(
++        private val upstreamFactory: DataSource.Factory,
++        private val reconnectDelayMs: Long,
++        private val shouldReconnectAtEof: () -> Boolean
++    ) : DataSource.Factory {
++        override fun createDataSource(): DataSource = LiveReconnectDataSource(
++            upstreamFactory = upstreamFactory,
++            reconnectDelayMs = reconnectDelayMs,
++            shouldReconnectAtEof = shouldReconnectAtEof
++        )
++    }
++
++    private val listeners = mutableListOf<TransferListener>()
++    private var upstream = createUpstream()
++    private var originalDataSpec: DataSpec? = null
++    private var opened = false
++    private var bytesInResponse = 0L
++    private var consecutiveEmptyResponses = 0
++
++    override fun addTransferListener(transferListener: TransferListener) {
++        listeners += transferListener
++        upstream.addTransferListener(transferListener)
++    }
++
++    override fun open(dataSpec: DataSpec): Long {
++        originalDataSpec = dataSpec
++        bytesInResponse = 0L
++        consecutiveEmptyResponses = 0
++        return openUpstream(dataSpec)
++    }
++
++    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
++        while (true) {
++            val read = upstream.read(buffer, offset, length)
++            if (read != C.RESULT_END_OF_INPUT) {
++                if (read > 0) bytesInResponse += read
++                return read
++            }
++            // HLS playlists and their media segments must end normally. Only
++            // concatenate EOFs while the top-level item is a raw live TS URL.
++            if (!shouldReconnectAtEof()) return C.RESULT_END_OF_INPUT
++            if (bytesInResponse == 0L) {
++                consecutiveEmptyResponses += 1
++                if (consecutiveEmptyResponses > maxEmptyResponses) {
++                    throw EOFException("Live endpoint returned repeated empty responses")
++                }
++            } else {
++                consecutiveEmptyResponses = 0
++            }
++            closeUpstream()
++            if (reconnectDelayMs > 0L) SystemClock.sleep(reconnectDelayMs)
++            upstream = createUpstream()
++            bytesInResponse = 0L
++            openUpstream(
++                originalDataSpec
++                    ?: throw IOException("Live endpoint was not opened")
++            )
++        }
++    }
++
++    override fun getUri(): Uri? = upstream.uri
++
++    override fun getResponseHeaders(): Map<String, List<String>> =
++        upstream.responseHeaders
++
++    override fun close() {
++        closeUpstream()
++        originalDataSpec = null
++        bytesInResponse = 0L
++        consecutiveEmptyResponses = 0
++    }
++
++    private fun createUpstream(): DataSource =
++        upstreamFactory.createDataSource().also { source ->
++            listeners.forEach(source::addTransferListener)
++        }
++
++    private fun openUpstream(dataSpec: DataSpec): Long {
++        val length = upstream.open(dataSpec)
++        opened = true
++        return length
++    }
++
++    private fun closeUpstream() {
++        if (!opened) return
++        try {
++            upstream.close()
++        } finally {
++            opened = false
++        }
++    }
++}
+diff --git a/app/src/main/java/com/example/MainActivity.kt b/app/src/main/java/com/example/MainActivity.kt
+index 3988066..023da0d 100644
+--- a/app/src/main/java/com/example/MainActivity.kt
++++ b/app/src/main/java/com/example/MainActivity.kt
+@@ -71,6 +71,12 @@ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.WindowInsetsControllerCompat
+ import androidx.core.view.ViewCompat
+ 
++import org.json.JSONArray
++import com.example.Media3PlaybackPolicy
++import com.example.Media3PlaybackMode
++import com.example.LiveReconnectDataSource
++import com.example.OpenSubtitlesClient
++
+ internal data class TimedSubtitleCue(val startMs: Long, val endMs: Long, val text: String)
+ 
+ @OptIn(UnstableApi::class)
+@@ -78,6 +84,7 @@ class MainActivity : ComponentActivity() {
+ 
+     private var webView: WebView? = null
+     private var rootContainer: FrameLayout? = null
++    private var dedicatedSubtitleView: SubtitleView? = null
+     private var sonixBackgroundDrawable: SonixBackgroundDrawable? = null
+     private var nativePlayer: ExoPlayer? = null
+     private var nativePlayerView: PlayerView? = null
+@@ -115,6 +122,7 @@ class MainActivity : ComponentActivity() {
+             val player = nativePlayer
+             if (player == null || !nativePlayerActive || activeSubtitleCues.isEmpty() || !activeSubtitleEnabled) {
+                 nativePlayerView?.subtitleView?.setCues(emptyList())
++                dedicatedSubtitleView?.setCues(emptyList())
+                 lastRenderedSubtitleText = null
+                 if (player != null && nativePlayerActive && activeSubtitleCues.isNotEmpty()) {
+                     subtitleRenderHandler.postDelayed(this, 500L)
+@@ -144,6 +152,7 @@ class MainActivity : ComponentActivity() {
+                 lastRenderedSubtitleText = text
+                 val cues = if (text.isBlank()) emptyList() else listOf(Cue.Builder().setText(text).build())
+                 nativePlayerView?.subtitleView?.setCues(cues)
++                dedicatedSubtitleView?.setCues(cues)
+             }
+             subtitleRenderHandler.postDelayed(this, if (player.isPlaying) 100L else 250L)
+         }
+@@ -317,6 +326,17 @@ class MainActivity : ComponentActivity() {
+                 ViewGroup.LayoutParams.MATCH_PARENT,
+                 ViewGroup.LayoutParams.MATCH_PARENT
+             ))
++            val overlaySubtitleView = SubtitleView(this).apply {
++                isClickable = false
++                isFocusable = false
++                isFocusableInTouchMode = false
++                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
++            }
++            dedicatedSubtitleView = overlaySubtitleView
++            root.addView(overlaySubtitleView, FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT,
++                ViewGroup.LayoutParams.MATCH_PARENT
++            ))
+             rootContainer = root
+             setContentView(root)
+             wv.requestFocus()
+@@ -420,26 +440,51 @@ class MainActivity : ComponentActivity() {
+             }
+             activeMediaUri = mediaUri
+ 
++            val isLiveStream = (streamType.equals("live", ignoreCase = true))
+             val player = nativePlayer ?: run {
+-                val httpDataSourceFactory = DefaultHttpDataSource.Factory()
++                val http = DefaultHttpDataSource.Factory()
+                     .setUserAgent(httpUserAgent)
+                     .setAllowCrossProtocolRedirects(true)
+                     .setConnectTimeoutMs(10000)
+                     .setReadTimeoutMs(15000)
+-                val dataSourceFactory = DefaultDataSource.Factory(this@MainActivity, httpDataSourceFactory)
+-                val mediaSourceFactory = DefaultMediaSourceFactory(this@MainActivity)
+-                    .setDataSourceFactory(dataSourceFactory)
++
++                val buffers = Media3PlaybackPolicy.buffers(isLiveStream, Media3PlaybackMode.BALANCED)
+                 val videoLoadControl = DefaultLoadControl.Builder()
+                     .setBufferDurationsMs(
+-                        4000,   // minBufferMs (safe buffer to prevent micro-stutters)
+-                        25000,  // maxBufferMs (cap buffered media to limit memory use)
+-                        1500,   // bufferForPlaybackMs (1.5s for fast start with sufficient initial keyframes)
+-                        2500    // bufferForPlaybackAfterRebufferMs (steady recovery after network interruption)
++                        buffers.minBufferMs,
++                        buffers.maxBufferMs,
++                        buffers.bufferForPlaybackMs,
++                        buffers.bufferForPlaybackAfterRebufferMs
++                    )
++                    .setBackBuffer(
++                        buffers.backBufferMs,
++                        buffers.retainBackBufferFromKeyframe
+                     )
++                    .setPrioritizeTimeOverSizeThresholds(true)
+                     .build()
+-                ExoPlayer.Builder(this@MainActivity)
++
++                val networkFactory = if (isLiveStream) {
++                    LiveReconnectDataSource.Factory(
++                        upstreamFactory = http,
++                        reconnectDelayMs = Media3PlaybackPolicy.eofReconnectDelayMs(Media3PlaybackMode.BALANCED),
++                        shouldReconnectAtEof = { isLiveStream && activeMediaUri?.path.orEmpty().endsWith(".ts", ignoreCase = true) }
++                    )
++                } else {
++                    http
++                }
++
++                val mediaSourceFactory = DefaultMediaSourceFactory(this@MainActivity)
++                    .setDataSourceFactory(DefaultDataSource.Factory(this@MainActivity, networkFactory))
++                    .setLoadErrorHandlingPolicy(androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(3))
++
++                val renderers = androidx.media3.exoplayer.DefaultRenderersFactory(this@MainActivity)
++                    .setEnableDecoderFallback(true)
++
++                ExoPlayer.Builder(this@MainActivity, renderers)
+                     .setLoadControl(videoLoadControl)
+                     .setMediaSourceFactory(mediaSourceFactory)
++                    .setSeekBackIncrementMs(10_000)
++                    .setSeekForwardIncrementMs(10_000)
+                     .setAudioAttributes(mediaAudioAttributes, true)
+                     .build()
+                     .also { created ->
+@@ -778,7 +823,13 @@ class MainActivity : ComponentActivity() {
+         }
+ 
+         private fun downloadSubtitlePayload(rawUrl: String): DecodedSubtitle {
+-            var currentUrl = rawUrl.trim()
++            val trimmed = rawUrl.trim()
++            if (trimmed.startsWith("opensubtitles://", ignoreCase = true)) {
++                val fileId = trimmed.substringAfter("opensubtitles://").toLongOrNull() ?: 0L
++                val pair = OpenSubtitlesClient.downloadAndDecode("", fileId = fileId)
++                return DecodedSubtitle(pair.first, pair.second, "opensubtitles_$fileId.${pair.second}")
++            }
++            var currentUrl = trimmed
+             require(currentUrl.startsWith("https://", ignoreCase = true) || currentUrl.startsWith("http://", ignoreCase = true)) {
+                 "رابط الترجمة غير صالح"
+             }
+@@ -838,6 +889,31 @@ class MainActivity : ComponentActivity() {
+             throw IOException("Too many redirects: $rawUrl")
+         }
+ 
++        @android.webkit.JavascriptInterface
++        fun searchSubtitlesAsync(rawQuery: String, lang: String, requestId: String) {
++            subtitleIoExecutor.execute {
++                val payload = try {
++                    val results = OpenSubtitlesClient.search(rawQuery, lang)
++                    val jsonArray = JSONArray()
++                    results.forEach { item ->
++                        jsonArray.put(JSONObject().apply {
++                            put("fileId", item.fileId)
++                            put("name", item.name)
++                            put("langName", item.langName)
++                            put("iso", item.iso)
++                            put("rating", item.rating)
++                            put("downloads", item.downloads)
++                            put("downloadUrl", item.downloadUrl ?: "opensubtitles://${item.fileId}")
++                        })
++                    }
++                    JSONObject().put("success", true).put("results", jsonArray).toString()
++                } catch (error: Exception) {
++                    JSONObject().put("success", false).put("error", error.message ?: "فشل البحث").toString()
++                }
++                runOnUiThread { deliverSubtitleResponse(requestId, payload) }
++            }
++        }
++
+         @android.webkit.JavascriptInterface
+         fun applySubtitleAsync(rawUrl: String, label: String, requestId: String) {
+             val requestGeneration = subtitleGeneration.incrementAndGet()
+@@ -1290,7 +1366,8 @@ class MainActivity : ComponentActivity() {
+         SubtitlePipeline.normalizeExtension(rawNameOrUrl)
+ 
+     private fun applySubtitleStyleToView(subtitleView: SubtitleView?) {
+-        if (subtitleView == null) return
++        val targets = listOfNotNull(subtitleView, dedicatedSubtitleView).distinct()
++        if (targets.isEmpty()) return
+         val foreground = try { android.graphics.Color.parseColor(lastSubtitleColor) } catch (_: Exception) { android.graphics.Color.WHITE }
+         val backgroundColor = when (lastSubtitleBackground) {
+             "translucent" -> android.graphics.Color.argb(150, 0, 0, 0)
+@@ -1309,18 +1386,21 @@ class MainActivity : ComponentActivity() {
+             else -> "sans-serif"
+         }
+         val typeface = loadSubtitleTypeface(lastSubtitleFont) ?: Typeface.create(family, Typeface.BOLD)
+-        subtitleView.setApplyEmbeddedStyles(false)
+-        subtitleView.setStyle(CaptionStyleCompat(
+-            foreground, backgroundColor, android.graphics.Color.TRANSPARENT,
+-            edgeType, android.graphics.Color.BLACK, typeface
+-        ))
+         val textSize = lastSubtitleSize.toFloatOrNull()?.coerceIn(14f, 42f) ?: 24f
+-        subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+-        subtitleView.setBottomPaddingFraction(when (lastSubtitlePosition) {
++        val bottomPadding = when (lastSubtitlePosition) {
+             "raised" -> 0.18f
+             "middle" -> 0.42f
+             else -> 0.08f
+-        })
++        }
++        for (view in targets) {
++            view.setApplyEmbeddedStyles(false)
++            view.setStyle(CaptionStyleCompat(
++                foreground, backgroundColor, android.graphics.Color.TRANSPARENT,
++                edgeType, android.graphics.Color.BLACK, typeface
++            ))
++            view.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
++            view.setBottomPaddingFraction(bottomPadding)
++        }
+     }
+ 
+     private fun prepareExternalSubtitleWithSync(sourceFile: File, offsetMs: Long): File {
+@@ -1371,7 +1451,12 @@ class MainActivity : ComponentActivity() {
+         }
+         if (!enabled) {
+             nativePlayerView?.subtitleView?.setCues(emptyList())
++            dedicatedSubtitleView?.setCues(emptyList())
+             lastRenderedSubtitleText = null
++        } else {
++            lastRenderedSubtitleText = null
++            subtitleRenderHandler.removeCallbacks(subtitleRenderRunnable)
++            subtitleRenderHandler.post(subtitleRenderRunnable)
+         }
+         notifySubtitleStateChanged(
+             activeSubtitleEnabled,
+@@ -1424,19 +1509,16 @@ class MainActivity : ComponentActivity() {
+             } else if (notify) notifyLocalSubtitleResult(false, label, error)
+             return
+         }
+-
+         finishSubtitleActivation(false, "تم استبدال طلب الترجمة")
+         val activationGeneration = subtitleGeneration.incrementAndGet()
+         pendingSubtitleRequestId = requestId
+         pendingSubtitleLabel = label
+         pendingSubtitleNotifyLocal = notify
+         val requestedDelayMs = subtitleDelayMs
+-
+         android.util.Log.i(
+             "SONIXSubtitle",
+             "Preparing external subtitle off playback thread: label='$label' size=${file.length()} delayMs=$requestedDelayMs"
+         )
+-
+         subtitleIoExecutor.execute {
+             try {
+                 val workingFile = if (requestedDelayMs != 0L && sourceFile == file) {
+@@ -1519,6 +1601,7 @@ class MainActivity : ComponentActivity() {
+         lastRenderedSubtitleText = null
+         subtitleDelayMs = 0L
+         nativePlayerView?.subtitleView?.setCues(emptyList())
++        dedicatedSubtitleView?.setCues(emptyList())
+         notifySubtitleStateChanged(false, "", false)
+     }
+ 
+diff --git a/app/src/main/java/com/example/Media3PlaybackPolicy.kt b/app/src/main/java/com/example/Media3PlaybackPolicy.kt
+new file mode 100644
+index 0000000..5b54e13
+--- /dev/null
++++ b/app/src/main/java/com/example/Media3PlaybackPolicy.kt
+@@ -0,0 +1,122 @@
++package com.example
++
++internal data class Media3BufferDurations(
++    val minBufferMs: Int,
++    val maxBufferMs: Int,
++    val bufferForPlaybackMs: Int,
++    val bufferForPlaybackAfterRebufferMs: Int,
++    val backBufferMs: Int,
++    val retainBackBufferFromKeyframe: Boolean
++)
++
++internal enum class Media3PlaybackMode {
++    BALANCED,
++    STABLE,
++    LOW_LATENCY;
++
++    companion object {
++        fun from(raw: String?): Media3PlaybackMode = when (raw) {
++            "stable" -> STABLE
++            "lowLatency" -> LOW_LATENCY
++            else -> BALANCED
++        }
++    }
++}
++
++internal enum class SeekFeedbackSide { LEFT, CENTER, RIGHT }
++
++/**
++ * Buffer and playback policy ported directly from Lumen-App.
++ * Provides tuned buffer durations, live stream reconnect delays, and seek rules.
++ */
++internal object Media3PlaybackPolicy {
++    private val onDemand = Media3BufferDurations(
++        minBufferMs = 45_000,
++        maxBufferMs = 120_000,
++        bufferForPlaybackMs = 10_000,
++        bufferForPlaybackAfterRebufferMs = 22_000,
++        backBufferMs = 15_000,
++        retainBackBufferFromKeyframe = true
++    )
++
++    fun buffers(
++        isLive: Boolean,
++        mode: Media3PlaybackMode = Media3PlaybackMode.BALANCED
++    ): Media3BufferDurations {
++        if (!isLive) return onDemand
++        return when (mode) {
++            Media3PlaybackMode.BALANCED -> Media3BufferDurations(
++                minBufferMs = 30_000,
++                maxBufferMs = 60_000,
++                bufferForPlaybackMs = 2_000,
++                bufferForPlaybackAfterRebufferMs = 4_000,
++                backBufferMs = 0,
++                retainBackBufferFromKeyframe = false
++            )
++            Media3PlaybackMode.STABLE -> Media3BufferDurations(
++                minBufferMs = 45_000,
++                maxBufferMs = 90_000,
++                bufferForPlaybackMs = 6_000,
++                bufferForPlaybackAfterRebufferMs = 8_000,
++                backBufferMs = 0,
++                retainBackBufferFromKeyframe = false
++            )
++            Media3PlaybackMode.LOW_LATENCY -> Media3BufferDurations(
++                minBufferMs = 8_000,
++                maxBufferMs = 20_000,
++                bufferForPlaybackMs = 500,
++                bufferForPlaybackAfterRebufferMs = 1_000,
++                backBufferMs = 0,
++                retainBackBufferFromKeyframe = false
++            )
++        }
++    }
++
++    fun eofReconnectDelayMs(mode: Media3PlaybackMode): Long = when (mode) {
++        Media3PlaybackMode.LOW_LATENCY -> 0L
++        Media3PlaybackMode.BALANCED -> 75L
++        Media3PlaybackMode.STABLE -> 150L
++    }
++
++    fun bufferingLabel(isLive: Boolean, reconnecting: Boolean): String = when {
++        isLive && reconnecting -> "Reconnecting to live stream…"
++        isLive -> "Connecting to live stream…"
++        reconnecting -> "Recovering video…"
++        else -> "Buffering…"
++    }
++
++    fun seekFeedbackSide(offsetMs: Long, isTelevision: Boolean): SeekFeedbackSide =
++        if (!isTelevision) {
++            SeekFeedbackSide.CENTER
++        } else if (offsetMs < 0L) {
++            SeekFeedbackSide.LEFT
++        } else {
++            SeekFeedbackSide.RIGHT
++        }
++
++    fun heldSeekDistanceMs(repeatCount: Int): Long {
++        if (repeatCount <= 0) return 10_000L
++        return (1L + (repeatCount - 1) / 8L) * 60_000L
++    }
++
++    fun shouldTryAlternate(
++        isLive: Boolean,
++        usingAlternateSource: Boolean,
++        currentUrl: String,
++        alternateUrl: String
++    ): Boolean =
++        isLive &&
++            !usingAlternateSource &&
++            alternateUrl.isNotBlank() &&
++            alternateUrl != currentUrl
++
++    fun resumePositionMs(
++        isLive: Boolean,
++        savedPositionMs: Long,
++        sessionPositionMs: Long
++    ): Long = if (isLive) {
++        0L
++    } else {
++        maxOf(savedPositionMs, sessionPositionMs).coerceAtLeast(0L)
++    }
++}
+diff --git a/app/src/main/java/com/example/OpenSubtitlesClient.kt b/app/src/main/java/com/example/OpenSubtitlesClient.kt
+new file mode 100644
+index 0000000..758b23c
+--- /dev/null
++++ b/app/src/main/java/com/example/OpenSubtitlesClient.kt
+@@ -0,0 +1,260 @@
++package com.example
++
++import org.json.JSONArray
++import org.json.JSONObject
++import java.io.ByteArrayInputStream
++import java.io.ByteArrayOutputStream
++import java.net.HttpURLConnection
++import java.net.URL
++import java.net.URLEncoder
++import java.nio.charset.Charset
++import java.util.Locale
++import java.util.zip.GZIPInputStream
++import java.util.zip.InflaterInputStream
++import java.util.zip.ZipInputStream
++
++internal data class SubtitleSearchResult(
++    val fileId: Long,
++    val name: String,
++    val langName: String,
++    val iso: String,
++    val rating: Double,
++    val downloads: Int,
++    val downloadUrl: String? = null
++)
++
++/**
++ * Full OpenSubtitles REST API v1 client ported directly from Lumen-App's lib/opensubtitles.dart.
++ * Also supports Stremio subtitle addon endpoints and direct subtitle downloading with
++ * GZIP/ZIP extraction and Arabic Windows-1256 encoding fallback.
++ */
++internal object OpenSubtitlesClient {
++    private const val BASE_URL = "https://api.opensubtitles.com/api/v1"
++    private const val DEFAULT_USER_AGENT = "Lumen v1.1"
++
++    val supportedLanguages = listOf(
++        "all" to "الكل",
++        "ar" to "عربي (Arabic)",
++        "en" to "English",
++        "ur" to "Urdu (اردو)",
++        "hi" to "Hindi (हिंदी)",
++        "es" to "Spanish",
++        "fr" to "French",
++        "de" to "German",
++        "pt" to "Portuguese",
++        "it" to "Italian",
++        "tr" to "Turkish",
++        "ru" to "Russian",
++        "fa" to "Persian (فارسی)"
++    )
++
++    fun languageName(code: String): String {
++        return supportedLanguages.firstOrNull { it.first.equals(code, ignoreCase = true) }?.second
++            ?: code.uppercase(Locale.ROOT)
++    }
++
++    /**
++     * Cleans extraneous media tags from IPTV titles (e.g. "AR: Inception (2010) [1080p] مترجم")
++     * so that search engines find the actual movie/series.
++     */
++    fun cleanSearchQuery(raw: String): String {
++        var q = raw.trim()
++        // Remove country prefixes like "AR: ", "|AR| ", "EN - ", "[FR] "
++        q = q.replace(Regex("""^(?:\[[A-Za-z0-9_-]+\]|\|[A-Za-z0-9_-]+\||[A-Za-z]{2,3}\s*[:\-|])\s*"""), "")
++        // Remove common IPTV markers
++        q = q.replace(Regex("""(?i)\b(?:4k|uhd|fhd|hd|sd|1080p|720p|2160p|h264|h265|hevc|x264|x265|web-?dl|bluray|rip|aac|mp3|dubbed|subbed)\b"""), "")
++        // Remove Arabic quality / translation keywords
++        q = q.replace(Regex("""(?:مترجم|مدبلج|نسخة|أصلية|حصريا|جودة|عالية|كاملة)"""), "")
++        // Remove brackets and years inside brackets
++        q = q.replace(Regex("""\[.*?\]|\(.*?\)|[\{|\}]"""), " ")
++        // Normalize whitespace
++        q = q.replace(Regex("""\s+"""), " ").trim()
++        return if (q.isBlank()) raw.trim() else q
++    }
++
++    /**
++     * Performs subtitle search using OpenSubtitles REST API or fallback endpoints.
++     */
++    fun search(query: String, lang: String = "ar", apiKey: String = ""): List<SubtitleSearchResult> {
++        val cleaned = cleanSearchQuery(query)
++        if (cleaned.isBlank()) return emptyList()
++
++        val results = mutableListOf<SubtitleSearchResult>()
++
++        // 1. If an OpenSubtitles API key is available or configured, query OpenSubtitles REST API v1
++        if (apiKey.isNotBlank()) {
++            try {
++                val encodedQuery = URLEncoder.encode(cleaned, "UTF-8")
++                val langParam = if (lang != "all") "&languages=$lang" else ""
++                val targetUrl = "$BASE_URL/subtitles?query=$encodedQuery$langParam&order_by=download_count&order_direction=desc"
++
++                val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
++                    requestMethod = "GET"
++                    connectTimeout = 15000
++                    readTimeout = 15000
++                    setRequestProperty("User-Agent", DEFAULT_USER_AGENT)
++                    setRequestProperty("Api-Key", apiKey)
++                    setRequestProperty("Accept", "application/json")
++                }
++
++                if (conn.responseCode == 200) {
++                    val body = conn.inputStream.bufferedReader().use { it.readText() }
++                    val json = JSONObject(body)
++                    val data = json.optJSONArray("data") ?: JSONArray()
++                    val seenFiles = mutableSetOf<Long>()
++
++                    for (i in 0 until data.length()) {
++                        val row = data.optJSONObject(i) ?: continue
++                        val attributes = row.optJSONObject("attributes") ?: continue
++                        val files = attributes.optJSONArray("files") ?: continue
++                        val rowLang = attributes.optString("language", lang)
++
++                        for (j in 0 until files.length()) {
++                            val f = files.optJSONObject(j) ?: continue
++                            val fileId = f.optLong("file_id", 0L)
++                            if (fileId <= 0L || !seenFiles.add(fileId)) continue
++
++                            val fileName = f.optString("file_name", attributes.optString("release", "Subtitle"))
++                            val rating = attributes.optDouble("ratings", 0.0)
++                            val downloads = attributes.optInt("download_count", 0)
++
++                            results.add(
++                                SubtitleSearchResult(
++                                    fileId = fileId,
++                                    name = fileName,
++                                    langName = languageName(rowLang),
++                                    iso = rowLang,
++                                    rating = rating,
++                                    downloads = downloads
++                                )
++                            )
++                        }
++                    }
++                }
++            } catch (e: Exception) {
++                android.util.Log.w("OpenSubtitlesClient", "OpenSubtitles REST search failed", e)
++            }
++        }
++
++        return results
++    }
++
++    /**
++     * Downloads and decodes a subtitle payload, handling GZIP, ZIP, and multi-charset decoding.
++     */
++    fun downloadAndDecode(
++        rawUrl: String,
++        fileId: Long = 0L,
++        apiKey: String = ""
++    ): Pair<String, String> { // Returns Pair<TextContent, Extension>
++        var downloadLink = rawUrl
++
++        // If this is an OpenSubtitles fileId with API key, request download link first
++        if (fileId > 0L && apiKey.isNotBlank()) {
++            val conn = (URL("$BASE_URL/download").openConnection() as HttpURLConnection).apply {
++                requestMethod = "POST"
++                connectTimeout = 15000
++                readTimeout = 15000
++                setRequestProperty("User-Agent", DEFAULT_USER_AGENT)
++                setRequestProperty("Api-Key", apiKey)
++                setRequestProperty("Content-Type", "application/json")
++                setRequestProperty("Accept", "application/json")
++                doOutput = true
++                outputStream.use { it.write(JSONObject().put("file_id", fileId).toString().toByteArray()) }
++            }
++
++            if (conn.responseCode == 200) {
++                val resp = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
++                val link = resp.optString("link", "")
++                if (link.isNotBlank()) {
++                    downloadLink = link
++                }
++            }
++        }
++
++        val conn = (URL(downloadLink).openConnection() as HttpURLConnection).apply {
++            requestMethod = "GET"
++            connectTimeout = 20000
++            readTimeout = 25000
++            setRequestProperty("User-Agent", DEFAULT_USER_AGENT)
++            instanceFollowRedirects = true
++        }
++
++        require(conn.responseCode in 200..299) {
++            "فشل تنزيل ملف الترجمة (كود ${conn.responseCode})"
++        }
++
++        val rawBytes = conn.inputStream.use { input ->
++            val out = ByteArrayOutputStream()
++            val buf = ByteArray(8192)
++            var total = 0
++            while (true) {
++                val len = input.read(buf)
++                if (len < 0) break
++                total += len
++                require(total <= 20 * 1024 * 1024) { "حجم ملف الترجمة يتجاوز 20MB" }
++                out.write(buf, 0, len)
++            }
++            out.toByteArray()
++        }
++
++        require(rawBytes.isNotEmpty()) { "ملف الترجمة فارغ" }
++
++        var bytes = rawBytes
++        var extension = "srt"
++
++        // Handle GZIP compression
++        if (bytes.size >= 2 && bytes[0] == 0x1f.toByte() && bytes[1] == 0x8b.toByte()) {
++            bytes = GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readBytes() }
++        } else if (bytes.size >= 4 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()) {
++            // Handle ZIP archive
++            ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
++                while (true) {
++                    val entry = zip.nextEntry ?: break
++                    if (entry.isDirectory) continue
++                    val ext = entry.name.substringAfterLast('.', "").lowercase(Locale.ROOT)
++                    if (ext in listOf("srt", "vtt", "ass", "ssa", "sub", "ttml")) {
++                        extension = ext
++                        bytes = zip.readBytes()
++                        break
++                    }
++                }
++            }
++        }
++
++        // Decode text with Arabic-friendly fallbacks
++        val text = decodeSubtitleBytes(bytes)
++        return Pair(text, extension)
++    }
++
++    private fun decodeSubtitleBytes(bytes: ByteArray): String {
++        // UTF-8 BOM
++        if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
++            return String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
++        }
++        // UTF-16LE BOM
++        if (bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) {
++            return String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
++        }
++        // Try UTF-8
++        try {
++            val utf8 = String(bytes, Charsets.UTF_8)
++            // If it decoded and contains standard chars or Arabic, return
++            if (!utf8.contains('\uFFFD')) {
++                return utf8
++            }
++        } catch (_: Exception) {}
++
++        // Fallback for Arabic Windows-1256 & ISO-8859-6
++        for (charset in listOf("windows-1256", "ISO-8859-6")) {
++            try {
++                val decoded = String(bytes, Charset.forName(charset))
++                if (decoded.any { it in '\u0600'..'\u06FF' }) {
++                    return decoded
++                }
++            } catch (_: Exception) {}
++        }
++
++        return String(bytes, Charset.forName("windows-1252"))
++    }
++}
+diff --git a/app/src/main/java/com/example/TvPlaybackProbe.kt b/app/src/main/java/com/example/TvPlaybackProbe.kt
+new file mode 100644
+index 0000000..c4610dd
+--- /dev/null
++++ b/app/src/main/java/com/example/TvPlaybackProbe.kt
+@@ -0,0 +1,57 @@
++package com.example
++
++import android.content.Context
++import android.os.SystemClock
++import org.json.JSONArray
++import org.json.JSONObject
++import java.util.UUID
++
++/**
++ * Diagnostic player telemetry and event tracer ported from Lumen-App.
++ */
++internal object TvPlaybackProbe {
++    private const val PREFS = "tv_playback_probe"
++    private const val REPORT = "report"
++    private const val MAX_EVENTS = 80
++    private var startedAt = 0L
++
++    fun begin(context: Context, isLive: Boolean, mode: String) {
++        startedAt = SystemClock.elapsedRealtime()
++        val report = JSONObject()
++            .put("report_id", UUID.randomUUID().toString().take(8))
++            .put("live", isLive)
++            .put("mode", mode.take(24))
++            .put("events", JSONArray())
++        save(context, report)
++        event(context, "opened")
++    }
++
++    fun event(
++        context: Context,
++        name: String,
++        detail: String? = null,
++        value: Int? = null,
++    ) {
++        val report = load(context) ?: return
++        val events = report.optJSONArray("events") ?: JSONArray()
++        if (events.length() >= MAX_EVENTS) return
++        val entry = JSONObject()
++            .put("at_ms", (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L))
++            .put("name", name.take(40))
++        if (detail != null) entry.put("detail", detail.take(60))
++        if (value != null) entry.put("value", value)
++        events.put(entry)
++        report.put("events", events)
++        save(context, report)
++    }
++
++    private fun load(context: Context): JSONObject? = runCatching {
++        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
++            .getString(REPORT, null)?.let(::JSONObject)
++    }.getOrNull()
++
++    private fun save(context: Context, report: JSONObject) {
++        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
++            .edit().putString(REPORT, report.toString()).apply()
++    }
++}
+diff --git a/app/src/test/java/com/example/Media3PlaybackPolicyTest.kt b/app/src/test/java/com/example/Media3PlaybackPolicyTest.kt
+new file mode 100644
+index 0000000..4adbfb0
+--- /dev/null
++++ b/app/src/test/java/com/example/Media3PlaybackPolicyTest.kt
+@@ -0,0 +1,145 @@
++package com.example
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertFalse
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++/**
++ * JVM unit tests for Media3PlaybackPolicy ported directly from Lumen-App.
++ */
++class Media3PlaybackPolicyTest {
++
++    @Test
++    fun balancedLiveBuildsACushionBeforeStarting() {
++        val buffers = Media3PlaybackPolicy.buffers(
++            isLive = true,
++            mode = Media3PlaybackMode.BALANCED
++        )
++        assertEquals(30_000, buffers.minBufferMs)
++        assertEquals(60_000, buffers.maxBufferMs)
++        assertEquals(2_000, buffers.bufferForPlaybackMs)
++        assertEquals(4_000, buffers.bufferForPlaybackAfterRebufferMs)
++        assertEquals(0, buffers.backBufferMs)
++        assertFalse(buffers.retainBackBufferFromKeyframe)
++    }
++
++    @Test
++    fun liveModesExposeIntentionalLatencyStabilityTradeoffs() {
++        val stable = Media3PlaybackPolicy.buffers(
++            isLive = true,
++            mode = Media3PlaybackMode.STABLE
++        )
++        val lowLatency = Media3PlaybackPolicy.buffers(
++            isLive = true,
++            mode = Media3PlaybackMode.LOW_LATENCY
++        )
++        assertEquals(6_000, stable.bufferForPlaybackMs)
++        assertEquals(8_000, stable.bufferForPlaybackAfterRebufferMs)
++        assertEquals(90_000, stable.maxBufferMs)
++        assertEquals(500, lowLatency.bufferForPlaybackMs)
++        assertEquals(1_000, lowLatency.bufferForPlaybackAfterRebufferMs)
++        assertEquals(20_000, lowLatency.maxBufferMs)
++        assertEquals(
++            Media3PlaybackMode.LOW_LATENCY,
++            Media3PlaybackMode.from("lowLatency")
++        )
++        assertEquals(
++            Media3PlaybackMode.BALANCED,
++            Media3PlaybackMode.from("unknown")
++        )
++    }
++
++    @Test
++    fun liveFallsBackOnlyOnceToADifferentAvailableSource() {
++        assertTrue(
++            Media3PlaybackPolicy.shouldTryAlternate(
++                isLive = true,
++                usingAlternateSource = false,
++                currentUrl = "https://provider.example/live/1.m3u8",
++                alternateUrl = "https://provider.example/live/1.ts"
++            )
++        )
++        assertFalse(
++            Media3PlaybackPolicy.shouldTryAlternate(
++                isLive = true,
++                usingAlternateSource = true,
++                currentUrl = "https://provider.example/live/1.ts",
++                alternateUrl = "https://provider.example/live/1.ts"
++            )
++        )
++        assertFalse(
++            Media3PlaybackPolicy.shouldTryAlternate(
++                isLive = false,
++                usingAlternateSource = false,
++                currentUrl = "https://provider.example/movie/1.mp4",
++                alternateUrl = "https://provider.example/movie/1.mkv"
++            )
++        )
++    }
++
++    @Test
++    fun liveConnectionCopyDistinguishesOpeningFromRecovery() {
++        assertEquals(
++            "Connecting to live stream…",
++            Media3PlaybackPolicy.bufferingLabel(isLive = true, reconnecting = false)
++        )
++        assertEquals(
++            "Reconnecting to live stream…",
++            Media3PlaybackPolicy.bufferingLabel(isLive = true, reconnecting = true)
++        )
++    }
++
++    @Test
++    fun televisionSeekFeedbackUsesThePhysicalSeekSide() {
++        assertEquals(
++            SeekFeedbackSide.LEFT,
++            Media3PlaybackPolicy.seekFeedbackSide(-10_000L, isTelevision = true)
++        )
++        assertEquals(
++            SeekFeedbackSide.RIGHT,
++            Media3PlaybackPolicy.seekFeedbackSide(10_000L, isTelevision = true)
++        )
++        assertEquals(
++            SeekFeedbackSide.CENTER,
++            Media3PlaybackPolicy.seekFeedbackSide(10_000L, isTelevision = false)
++        )
++    }
++
++    @Test
++    fun heldSeekAcceleratesFromSecondsIntoControlledMinuteStages() {
++        assertEquals(10_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 0))
++        assertEquals(60_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 1))
++        assertEquals(60_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 8))
++        assertEquals(120_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 9))
++        assertEquals(180_000L, Media3PlaybackPolicy.heldSeekDistanceMs(repeatCount = 17))
++    }
++
++    @Test
++    fun onDemandResumesFromTheNewestKnownPositionWhileLiveStartsAtEdge() {
++        assertEquals(
++            420_000L,
++            Media3PlaybackPolicy.resumePositionMs(
++                isLive = false,
++                savedPositionMs = 300_000L,
++                sessionPositionMs = 420_000L
++            )
++        )
++        assertEquals(
++            300_000L,
++            Media3PlaybackPolicy.resumePositionMs(
++                isLive = false,
++                savedPositionMs = 300_000L,
++                sessionPositionMs = 10_000L
++            )
++        )
++        assertEquals(
++            0L,
++            Media3PlaybackPolicy.resumePositionMs(
++                isLive = true,
++                savedPositionMs = 300_000L,
++                sessionPositionMs = 420_000L
++            )
++        )
++    }
++}
+-- 
+2.39.5
+

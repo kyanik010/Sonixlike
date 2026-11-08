@@ -1,11 +1,100 @@
-<div align="center">
+# SONIX TV — مشغل البث التلفزيوني المباشر وIPTV الاحترافي
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+تطبيق تلفزيوني متطور لنظام Android وAndroid TV مبني باستخدام محرك الوسائط **AndroidX Media3 (ExoPlayer)** مع واجهة تفاعلية خفيفة تدعم أجهزة التلفاز (D-pad remote control) والأجهزة اللوحية والهواتف المحمولة.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 🌟 المميزات الرئيسية
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. **محرك أصلي موحد (Media3 ExoPlayer):**
+   - تشغيل مباشر لجميع مصادر البث التلفزيوني (IPTV Live Streams) بصيغ HLS وMPEG-TS وDASH.
+   - تشغيل مكتبة الأفلام والمسلسلات (VOD) مع دعم التقديم والإرجاع (Seek).
+   - عرض الفيديو مباشرة عبر `PlayerView` (سطح `TextureView`) عالي الأداء مع قص متزامن بحواف دائرية تتطابق تماماً مع واجهة التطبيق.
+   - دعم التكبير لملء الشاشة مع شريط تحكم أفقي زجاجي ذكي يختفي تلقائياً.
 
-</div>
+2. **نظام الصوت الخارجي المزدوج (Dual Audio Engine):**
+   - إمكانية تشغيل قناة صوتية مستقلة (مثل قنوات التعليق الرياضي) متزامنة مع الفيديو الأساسي عبر مشغل خلفي مستقل مع إمكانية ضبط التوقيت بالمللي ثانية (+/- 10 ثوانٍ).
+   - كتم تلقائي للقناة الصوتية الأساسية عند تشغيل الصوت الخارجي واستعادتها بسلاسة عند الإيقاف.
+
+3. **أمان تام وحماية البيانات والخصوصية:**
+   - حفظ بيانات خادم Xtream Codes مشفرة داخل التخزين المحلي الآمن عبر مفتاح عتادي **AES-GCM 128-bit** مُدار بواسطة **Android Keystore**.
+   - عدم تمرير كلمات المرور أو روابط البث الحساسة إلى طبقة JavaScript؛ يتم تحضير الروابط وتمريرها مباشرة داخل الكود الأصلي عبر معرّفات المحتوى.
+   - استبعاد ملف الجلسة المشفرة من النسخ الاحتياطي السحابي لمنع تعطل فك التشفير عند استعادة النظام على جهاز جديد.
+   - حماية كاملة من هجمات XSS عبر إنشاء عناصر البحث وقوائم المحتوى برمجياً باستخدام `document.createElement` و`textContent` والربط المباشر للأحداث.
+
+4. **تجربة استخدام متوافقة مع أجهزة التلفاز والهاتف:**
+   - تنقل ذكي عبر أزرار التحكم بالريموت (D-Pad) مع حبس التركيز داخل النوافذ المنبثقة.
+   - دعم كامل للغة العربية واتجاه اليمين إلى اليسار (RTL).
+   - شعار ولافتة مخصصة لشاشات التلفاز الذكية (`android:banner`).
+
+---
+
+## 📁 بنية المشروع
+
+```
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── assets/
+│   │   │   │   ├── sonix_tv.html   # هيكل الواجهة الأساسي
+│   │   │   │   ├── styles.css      # تصميم وتنسيقات الواجهة ونظام الألوان
+│   │   │   │   └── app.js          # منطق التطبيق والتنقل والتحكم
+│   │   │   ├── java/com/example/
+│   │   │   │   ├── MainActivity.kt            # النشاط الرئيسي، مشغل Media3 وإدارة النوافذ
+│   │   │   │   ├── XtreamBridge.kt            # جسر Xtream Codes وتشفير Keystore الآمن
+│   │   │   │   ├── XtreamAccountValidator.kt  # فحص وتحقق صلاحية حسابات واشتراكات Xtream
+│   │   │   │   ├── PreviewLayoutCalculator.kt # حساب أبعاد المعاينة وضمان عدم خروجها عن الشاشة
+│   │   │   │   └── model/                     # نماذج بيانات القنوات والوسائط
+│   │   │   └── res/
+│   │   │       ├── layout/native_player_view.xml # تخطيط PlayerView الأصلي
+│   │   │       ├── drawable/banner.xml           # لافتة Android TV الرئيسية
+│   │   │       └── xml/                          # قواعد النسخ الاحتياطي الآمنة
+│   │   └── test/java/com/example/                # اختبارات الوحدة لـ JVM وRobolectric
+├── .github/workflows/android-apk.yml             # مسار البناء التلقائي والفحص الأمني في CI
+└── README.md                                     # دليل التوثيق والتشغيل
+```
+
+---
+
+## 🔒 سياسة الأمان والخصوصية
+
+- **حفظ بيانات الاعتماد:** تُحفظ بيانات الدخول (عنوان الخادم، اسم المستخدم، كلمة المرور) في `SharedPreferences` باسم `sonix_secure_account` مشفرة بخوارزمية `AES/GCM/NoPadding`. المفتاح السري يُنشأ ويُحفظ داخل `AndroidKeyStore` المشفر عتادياً بالمعرف `sonix_xtream_credentials`.
+- **النسخ الاحتياطي:** تم استبعاد ملف `sonix_secure_account.xml` في `backup_rules.xml` و`data_extraction_rules.xml` لأن مفاتيح Keystore لا تنتقل بين الأجهزة أو بعد إعادة ضبط المصنع.
+- **إعدادات WebView:** تم تعطيل `allowFileAccess` و`allowContentAccess`، وتحديد وضع المحتوى المختلط إلى الوضع الآمن، لمنع أي محاولة وصول غير مصرح بها للملفات المحلية.
+- **فصل الروابط الحساسة:** لا تصل روابط البث التي تحتوي على كلمة المرور إلى كود JavaScript؛ يتم طلب التشغيل عبر `NativePlayback.playStream(type, streamId, extension)` ويتولى المحرك الأصلي إنشاء الرابط وتمريره إلى مشغل Media3.
+
+---
+
+## 🛠️ متطلبات وطريقة البناء
+
+### المتطلبات:
+- **JDK 17** (مثال: Eclipse Temurin 17)
+- **Android SDK:** Compile SDK 36، Min SDK 24
+- **Gradle:** الإصدار 8.x أو 9.x عبر الأمر `gradle`
+
+### أوامر البناء:
+- **تشغيل اختبارات الوحدة:**
+  ```bash
+  gradle testDebugUnitTest
+  ```
+- **إنشاء APK للتجربة والتطوير (Debug):**
+  ```bash
+  gradle assembleDebug
+  ```
+  يتم إنتاج ملف الـ APK في المسار:
+  `app/build/outputs/apk/debug/app-debug.apk`
+
+- **توليد إصدار الإنتاج (Release):**
+  يتم تعيين متغيرات البيئة لشهادة التوقيع:
+  `KEYSTORE_PATH` و`STORE_PASSWORD` و`KEY_PASSWORD` ثم تشغيل:
+  ```bash
+  gradle assembleRelease
+  ```
+
+---
+
+## 📺 أذونات التطبيق
+
+- `android.permission.INTERNET`: للاتصال بخوادم البث التلفزيوني ومزود Xtream Codes.
+- `android.permission.ACCESS_NETWORK_STATE`: للتحقق من حالة اتصال الشبكة والإنترنت قبل إجراء الطلبات.
+- `android.permission.MODIFY_AUDIO_SETTINGS`: للتحكم في مستويات الصوت وتبديل مسارات الصوت الخارجي المزدوج.

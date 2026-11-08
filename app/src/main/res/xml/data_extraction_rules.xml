@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Exclude Keystore-encrypted credential preferences because the Keystore AES master key cannot be restored across backups. -->
+        <exclude domain="sharedpref" path="sonix_secure_account.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="sonix_secure_account.xml"/>
+    </device-transfer>
+</data-extraction-rules>

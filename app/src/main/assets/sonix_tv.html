@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SONIX TV</title>
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- CINEMATIC WELCOME / SPLASH SCREEN (SONIX TV VIP) -->
+  <section id="sonix-splash-screen" class="splash-screen" aria-label="شاشة الترحيب">
+    <div class="splash-backdrop-layer">
+      <div class="splash-ambient-core"></div>
+      <div class="splash-ambient-glow"></div>
+      <div class="splash-particles-container">
+        <span class="splash-particle p1"></span>
+        <span class="splash-particle p2"></span>
+        <span class="splash-particle p3"></span>
+        <span class="splash-particle p4"></span>
+        <span class="splash-particle p5"></span>
+        <span class="splash-particle p6"></span>
+      </div>
+    </div>
+    <div class="splash-stage">
+      <div class="splash-logo-container">
+        <div class="splash-halo-glow"></div>
+        <img class="splash-logo-img" src="sonix-logo-horizontal.png" alt="SONIX TV" draggable="false">
+        <div class="splash-shimmer-sweep"></div>
+      </div>
+      <div class="splash-divider-bar">
+        <div class="splash-pulse-line"></div>
+      </div>
+      <div class="splash-caption-block">
+        <span class="splash-title-text">عالم الترفيه بلا حدود</span>
+        <span class="splash-subtitle-text">VIP CINEMATIC EXPERIENCE</span>
+      </div>
+      <div class="splash-loader-indicator">
+        <span class="splash-dot dot-1"></span>
+        <span class="splash-dot dot-2"></span>
+        <span class="splash-dot dot-3"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="sonix-login-screen" class="hidden" aria-label="تسجيل الدخول">
+    <div class="sonix-login-card">
+      <div class="sonix-brand sonix-brand-login" style="align-items:center"><img class="sonix-brand-image" src="sonix-logo-horizontal.png" alt="SONIX TV"></div>
+      <select id="login-server" class="focusable" aria-label="اختار السيرفر" disabled><option value="" selected>اختار السيرفر</option></select>
+      <input id="login-username" class="focusable" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="اسم المستخدم">
+      <input id="login-password" class="focusable" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="كلمة المرور">
+      
+      <button id="login-submit" class="focusable" type="button" disabled>تسجيل الدخول</button>
+      <div id="sonix-login-message" role="status"></div>
+    </div>
+  </section>
+  <!-- Ambient Wave Layer -->
+  <div class="ambient-waves"></div>
+
+  <!-- MAIN APPLICATION CONTAINER -->
+  <div id="app-container">
+
+    <!-- ======================================================================
+         SCREEN 1: HOME (الرئيسية)
+         ====================================================================== -->
+    <div id="view-home" class="view-screen active">
+
+      <!-- Home Top Bar -->
+      <div class="home-top-bar">
+        
+        <!-- Top Right: Brand Logo -->
+        <div class="sonix-brand sonix-brand-home">
+          <img class="sonix-brand-image" src="sonix-logo-horizontal.png" alt="SONIX TV">
+        </div>
+
+        <!-- Center: Arabic-Indic Clock -->
+        <div class="home-clock-container">
+          <div id="home-clock-digits" class="home-clock">٠١:٠٤ ص</div>
+          <div id="home-clock-date" class="home-date">الأربعاء، ٠٤ نوفمبر</div>
+        </div>
+
+        <!-- Top Left: 5 Glass Tool Buttons -->
+        <div class="home-toolbar">
+          <!-- 1. Power (red-orange) -->
+          <button id="btn-power" class="tool-btn btn-power focusable" data-group="home-toolbar" title="إغلاق التطبيق">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"/>
+            </svg>
+          </button>
+          <!-- 2. Refresh -->
+          <button id="btn-refresh" class="tool-btn focusable" data-group="home-toolbar" title="تحديث القنوات">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </button>
+          <!-- 3. Profile -->
+          <button id="btn-profile" class="tool-btn focusable" data-group="home-toolbar" title="الملف الشخصي">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+          </button>
+          <!-- 4. Settings -->
+          <button id="btn-settings" class="tool-btn focusable" data-group="home-toolbar" title="الإعدادات">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+          <!-- 5. Search -->
+          <button id="btn-search" class="tool-btn focusable" data-group="home-toolbar" title="البحث">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Main Center Glass Panel: 3 Hero Action Cards -->
+      <div class="home-main-panel">
+        
+        <!-- Card 1: أفلام (Movies) -->
+        <div id="card-movies" class="hero-card focusable" data-group="home-cards" tabindex="0">
+          <div class="hero-icon-container">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--focus-blue)" stroke-width="1.8">
+              <rect x="2" y="6" width="20" height="12" rx="2.5" />
+              <path d="M7 6v12M17 6v12M2 10h20M2 14h20" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="2.5" fill="var(--accent-gold)" stroke="none"/>
+            </svg>
+          </div>
+          <div class="hero-title">أفلام</div>
+          <div class="hero-subtitle">أحدث الأفلام والسينما العالمية</div>
+          <div class="catalog-sync-overlay" data-catalog-overlay="movies" aria-live="polite">
+            <div class="catalog-sync-prompt">اضغط هنا لتحميل الأفلام</div>
+            <div class="catalog-sync-loading" hidden><span class="catalog-sync-spinner" aria-hidden="true"></span><span>جاري التحميل...</span></div>
+            <div class="catalog-sync-error" hidden><span class="catalog-sync-error-text"></span><button type="button" class="catalog-sync-retry focusable" data-catalog-retry="movies" tabindex="0">إعادة المحاولة</button></div>
+          </div>
+        </div>
+
+        <!-- Card 2: مسلسلات (Series) -->
+        <div id="card-series" class="hero-card focusable" data-group="home-cards" tabindex="0">
+          <div class="hero-icon-container">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--focus-blue)" stroke-width="1.8">
+              <rect x="3" y="4" width="18" height="16" rx="3"/>
+              <path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4" stroke-linecap="round"/>
+              <polygon points="11,10 15,12 11,14" fill="var(--accent-gold)" stroke="none"/>
+            </svg>
+          </div>
+          <div class="hero-title">مسلسلات</div>
+          <div class="hero-subtitle">أقوى المسلسلات العربية والأجنبية</div>
+          <div class="catalog-sync-overlay" data-catalog-overlay="series" aria-live="polite">
+            <div class="catalog-sync-prompt">اضغط هنا لتحميل المسلسلات</div>
+            <div class="catalog-sync-loading" hidden><span class="catalog-sync-spinner" aria-hidden="true"></span><span>جاري التحميل...</span></div>
+            <div class="catalog-sync-error" hidden><span class="catalog-sync-error-text"></span><button type="button" class="catalog-sync-retry focusable" data-catalog-retry="series" tabindex="0">إعادة المحاولة</button></div>
+          </div>
+        </div>
+
+        <!-- Card 3: قنوات (Live TV) -->
+        <div id="card-channels" class="hero-card focusable" data-group="home-cards" tabindex="0">
+          <div class="hero-icon-container">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--focus-blue)" stroke-width="1.8">
+              <rect x="2" y="7" width="20" height="14" rx="3" fill="var(--selected-item-bg)"/>
+              <path d="M17 3l-5 4-5-4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="14" r="1.5" fill="var(--accent-gold)"/>
+              <path d="M8.5 11.5a5 5 0 017 0" stroke="var(--accent-gold)" stroke-linecap="round"/>
+              <path d="M6 9a8.5 8.5 0 0112 0" stroke="var(--accent-gold)" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="hero-title">قنوات</div>
+          <div class="hero-subtitle">البث المباشر لجميع القنوات</div>
+          <div class="catalog-sync-overlay" data-catalog-overlay="live" aria-live="polite">
+            <div class="catalog-sync-prompt">اضغط هنا لتحميل القنوات</div>
+            <div class="catalog-sync-loading" hidden><span class="catalog-sync-spinner" aria-hidden="true"></span><span>جاري التحميل...</span></div>
+            <div class="catalog-sync-error" hidden><span class="catalog-sync-error-text"></span><button type="button" class="catalog-sync-retry focusable" data-catalog-retry="live" tabindex="0">إعادة المحاولة</button></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Contact and User Information -->
+      <div class="home-bottom-row">
+        <div class="home-bottom-stack">
+          <div class="home-whatsapp-bar" aria-label="التواصل عبر واتساب">
+            <svg class="home-whatsapp-icon" viewBox="0 0 32 32" role="img" aria-label="واتساب">
+              <path fill="currentColor" d="M16.02 3.2c-7.06 0-12.8 5.72-12.8 12.76 0 2.25.6 4.45 1.72 6.4L3.1 28.8l6.62-1.73a12.86 12.86 0 0 0 6.29 1.63h.01c7.05 0 12.79-5.73 12.8-12.77a12.7 12.7 0 0 0-3.75-9.04 12.72 12.72 0 0 0-9.05-3.69Zm0 23.32h-.01a10.6 10.6 0 0 1-5.4-1.48l-.39-.23-3.93 1.03 1.05-3.83-.25-.4a10.55 10.55 0 0 1-1.63-5.65c0-5.84 4.75-10.58 10.57-10.58 2.82 0 5.47 1.1 7.46 3.1a10.5 10.5 0 0 1 3.1 7.47c0 5.84-4.75 10.57-10.57 10.57Zm5.8-7.92c-.32-.16-1.88-.93-2.17-1.04-.29-.1-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.69.08-.32-.16-1.35-.5-2.57-1.59-.95-.84-1.6-1.88-1.79-2.2-.19-.32-.02-.49.14-.65.14-.14.32-.37.48-.56.16-.18.21-.32.32-.53.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.98-2.34-.26-.61-.52-.53-.71-.54h-.61c-.21 0-.56.08-.85.4-.29.32-1.11 1.09-1.11 2.66 0 1.57 1.14 3.08 1.3 3.29.16.21 2.24 3.42 5.43 4.8.76.33 1.35.53 1.81.68.76.24 1.45.21 2 .13.61-.09 1.88-.77 2.14-1.51.27-.74.27-1.38.19-1.51-.08-.13-.29-.21-.61-.37Z"/>
+            </svg>
+            <bdi class="home-whatsapp-number" dir="ltr">+966548295936</bdi>
+          </div>
+          <div class="user-card focusable" id="user-info-card" tabindex="0">
+          <div class="user-card-item">
+            <span class="user-card-label">اسم المستخدم:</span>
+            <span class="user-card-name" id="account-user-name">—</span>
+          </div>
+          <div class="user-card-divider"></div>
+          <div class="user-card-item">
+            <span class="user-card-label">رقم المشترك:</span>
+            <span class="user-card-id" id="account-user-id">—</span>
+          </div>
+          <div class="user-card-divider"></div>
+          <div class="user-card-item">
+            <span class="user-card-label">تاريخ انتهاء الصلاحية:</span>
+            <span class="user-card-date" id="account-expiry">—</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================================
+         SCREEN 2: UNIFIED 4-COLUMN CONTENT BROWSER (مباشر / أفلام / مسلسلات)
+         ====================================================================== -->
+    <div id="view-live" class="view-screen">
+
+      <!-- Content Top Bar -->
+      <div class="live-top-bar">
+        <!-- Right: Screen Title & Back Button -->
+        <div class="live-top-right">
+          <!-- Back button with explicit click listener that returns to Home -->
+          <button id="live-btn-back" class="live-back-btn focusable" title="رجوع للرئيسية">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+            <span>الرئيسية</span>
+          </button>
+          <div id="content-mode-title" class="live-screen-title">مباشر</div>
+        </div>
+
+        <!-- Center: Channel / Item Search Bar -->
+        <div class="live-search-container">
+          <div class="search-input-wrapper">
+            <input type="text" id="live-channel-search" class="search-input focusable" placeholder="البحث في القنوات..." />
+            <svg class="search-icon-inside" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+          <button id="live-search-btn" class="search-gold-btn focusable" title="بحث">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Left: Now Playing Ticker -->
+        <div class="now-playing-ticker">
+          <span class="ticker-label">أنت تشاهد:</span>
+          <span id="ticker-cat" style="color:var(--text-silver);">—</span>
+          <span class="ticker-sep">&gt;&gt;</span>
+          <span id="ticker-ch" class="ticker-channel">—</span>
+        </div>
+      </div>
+
+      <!-- Unified 4-Column Layout: Sidebar (4%) -> Categories (22%) -> Channels/Items (28%) -> Player/Details (46%) -->
+      <div class="live-main-content">
+
+        <!-- 1. Mini Sidebar (~4%) -->
+        <div class="live-sidebar">
+          <div class="sidebar-top">
+            <div class="sidebar-mini-logo"><img src="sonix-logo-square.jpg" alt="SONIX"></div>
+            <!-- 1. Live TV -->
+            <button id="side-nav-live" class="sidebar-nav-item active focusable" title="البث المباشر (قنوات)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" />
+                <path d="M17 3l-5 4-5-4"/>
+              </svg>
+            </button>
+            <!-- 2. Movies -->
+            <button id="side-nav-movies" class="sidebar-nav-item focusable" title="الأفلام">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="12" rx="2"/>
+                <path d="M7 6v12M17 6v12"/>
+              </svg>
+            </button>
+            <!-- 3. Series -->
+            <button id="side-nav-series" class="sidebar-nav-item focusable" title="المسلسلات">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="16" rx="2"/>
+                <polygon points="10,9 15,12 10,15" fill="currentColor"/>
+              </svg>
+            </button>
+            <!-- 4. EPG / History -->
+            <button id="side-nav-history" class="sidebar-nav-item focusable" title="دليل البرامج">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 7v5l3 3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="sidebar-bottom">
+            <!-- 5. Settings -->
+            <button id="side-nav-settings" class="sidebar-nav-item focusable" title="الإعدادات">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Categories Column (~22%) -->
+        <div class="live-categories-col">
+          <div class="col-header-filter">
+            <input type="text" id="cat-filter-input" class="col-search-box focusable" placeholder="البحث في الفئات..." />
+          </div>
+          <div id="categories-list-container" class="categories-list">
+            <!-- Dynamically populated based on active mode -->
+          </div>
+        </div>
+
+        <!-- 3. Items Column (~28%) -->
+        <div class="live-channels-col">
+          <div class="channels-header-badge">
+            <div id="channels-badge-name" class="channels-header-text">التصنيفات</div>
+            <div id="channels-badge-count" class="channels-count-tag">0 قناة</div>
+          </div>
+          <div id="channels-list-container" class="channels-list">
+            <!-- Dynamically populated rows -->
+          </div>
+        </div>
+
+        <!-- 4. Player / Details Column (~46%) -->
+        <div class="live-player-col">
+          
+          <!-- 16:9 Video Canvas Frame -->
+          <div class="video-viewport">
+            <!-- Secondary Audio Element for Dual Audio System -->
+            <audio id="external-audio" preload="auto"></audio>
+
+            <!-- Top Left Match Score / Status Overlay -->
+            <div id="player-score-overlay" class="player-match-overlay">
+              <span class="live-pill">LIVE</span>
+              <span class="match-score">—</span>
+              <span class="match-time">—</span>
+            </div>
+
+            <!-- Top Right External Audio Active Indicator -->
+            <div id="ext-audio-badge" class="ext-audio-active-badge">
+              <div class="audio-wave-anim">
+                <div class="audio-wave-bar"></div>
+                <div class="audio-wave-bar"></div>
+                <div class="audio-wave-bar"></div>
+              </div>
+              <span>صوت خارجي نشط</span>
+            </div>
+
+            <!-- Loading Spinner Overlay -->
+            <div id="player-loader" class="player-loader-overlay">
+              <div class="spinner"></div>
+              <div id="player-loader-text" class="player-status-text">جارٍ تحميل البث...</div>
+            </div>
+
+            <!-- Error Overlay -->
+            <div id="player-error" class="player-error-overlay">
+              <div style="font-size:1rem; font-weight:800; color:var(--danger-red);">تعذر تحميل البث المباشر</div>
+              <div style="font-size:0.8rem; color:var(--text-silver);">يرجى التأكد من اتصال الإنترنت أو اختيار مصدر آخر</div>
+              <button id="player-retry-action" class="player-retry-btn focusable">إعادة المحاولة</button>
+            </div>
+
+          <!-- VOD timeline: shown only with fullscreen playback controls for movies and episodes. -->
+          <div class="player-timeline" id="player-timeline" aria-label="شريط تقدم الفيلم أو الحلقة">
+            <div class="player-timeline-times" dir="ltr">
+              <span id="player-current-time">00:00</span>
+              <span id="player-total-time">00:00</span>
+            </div>
+            <input id="player-seek-bar" class="player-seek-bar focusable" type="range"
+              min="0" max="1000" step="1" value="0" aria-label="تقدم الفيديو"
+              aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0" tabindex="0">
+          </div>
+
+          <!-- Playback-only controls: shown after the native player is ready. -->
+          <div class="player-playback-controls" id="player-playback-controls">
+            <button id="btn-playback-fav" class="playback-control-btn focusable" title="إضافة للمفضلة">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span>مفضلة</span>
+            </button>
+            <button id="btn-open-ext-audio" class="playback-control-btn focusable" title="مصدر الصوت">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 010 6"/></svg>
+              <span id="ext-audio-btn-text">الصوت</span>
+            </button>
+            <button id="ctrl-mute-btn" class="playback-control-btn focusable" title="كتم الصوت">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9l5 6m0-6l-5 6"/></svg>
+              <span id="mute-label">كتم</span>
+            </button>
+            <button id="ctrl-seek-back" class="playback-control-btn focusable" title="إرجاع 10 ثوانٍ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 109-9 9.5 9.5 0 00-6 2.3L3 8"/><path d="M3 3v5h5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
+              <span>−10</span>
+            </button>
+            <button id="ctrl-seek-forward" class="playback-control-btn focusable" title="تقديم 10 ثوانٍ">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12A9 9 0 1112 3a9.5 9.5 0 016 2.3L21 8"/><path d="M21 3v5h-5"/><text x="8" y="15" font-size="6" fill="currentColor" stroke="none">10</text></svg>
+              <span>+10</span>
+            </button>
+            <button id="btn-toggle-subtitles" class="playback-control-btn focusable" title="الترجمة" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 10h4m-4 4h3m4-4h3m-3 4h3"/></svg>
+              <span id="subtitle-label">ترجمة</span>
+            </button>
+            <div class="player-quality-control">
+              <button id="btn-quality" class="playback-control-btn focusable" title="الجودة" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>
+                <span id="quality-label">جودة</span>
+              </button>
+              <div class="player-quality-menu" id="player-quality-menu">
+                <button class="player-quality-option focusable" data-quality="1080" aria-pressed="false">1080p</button>
+                <button class="player-quality-option focusable" data-quality="720" aria-pressed="true">720p</button>
+                <button class="player-quality-option focusable" data-quality="480" aria-pressed="false">480p</button>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- SONIX Professional Item Preview Panel (لوحة معاينة الأفلام والمسلسلات والقنوات) -->
+          <div id="sonix-preview-panel" class="sonix-preview-panel" aria-live="polite">
+            <div id="sonix-preview-content" class="preview-content">
+              <div class="preview-idle-state">
+                <div class="preview-idle-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                    <polyline points="17 2 12 7 7 2"/>
+                  </svg>
+                </div>
+                <div class="preview-idle-title">SONIX TV</div>
+                <div class="preview-idle-desc">تصفح القنوات أو الأفلام أو المسلسلات بالريموت لمعاينة التفاصيل</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview mode: keep only the existing preview and these two actions below it. -->
+          <div class="player-preview-actions">
+            <button id="btn-toggle-fav" class="action-btn focusable" title="إضافة للمفضلة">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              <span id="fav-btn-label">إضافة للمفضلة</span>
+            </button>
+            <button id="btn-open-epg" class="action-btn focusable" title="دليل البرامج">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              <span>دليل البرامج</span>
+            </button>
+          </div>
+
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================
+         MODAL 1: DUAL AUDIO SYSTEM (نظام الصوت الخارجي الاحترافي)
+         ====================================================================== -->
+    <div id="modal-ext-audio" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            </svg>
+            <span>نظام الصوت الخارجي (Dual Audio)</span>
+          </div>
+          <button id="close-ext-audio" class="modal-close-btn focusable" title="إغلاق">&times;</button>
+        </div>
+        <div class="modal-body">
+          
+          <div class="audio-status-banner">
+            <span>حالة اتصال الصوت:</span>
+            <div id="ext-audio-status-pill" class="audio-status-pill status-stopped">
+              <span class="status-dot"></span>
+              <span id="ext-audio-status-text">متوقف</span>
+            </div>
+          </div>
+
+          <div class="current-source-box">
+            <div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">مصدر الصوت الخارجي المختار:</div>
+              <div id="selected-audio-source-name" class="source-info-name">لم يتم اختيار مصدر صوت بعد</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button id="btn-start-audio" class="action-btn focusable" style="background:var(--focus-blue); color:#0A0F14; border:none; font-weight:800;">
+                تشغيل الصوت
+              </button>
+              <button id="btn-stop-audio" class="action-btn focusable" style="background:rgba(224,83,60,0.2); color:var(--danger-red); border-color:var(--danger-red);">
+                إيقاف
+              </button>
+            </div>
+          </div>
+
+          <div class="delay-section-box">
+            <div class="delay-header">
+              <div style="font-size:0.85rem;font-weight:800;color:var(--text-white);">مستوى صوت القناة الخارجية</div>
+              <div id="external-audio-volume-label" class="delay-value-display">100%</div>
+            </div>
+            <input id="external-audio-volume" class="focusable" type="range" min="0" max="100" step="1" value="100" style="width:100%;" aria-label="مستوى صوت القناة الخارجية" />
+          </div>
+
+          <!-- Manual Audio Delay Synchronization Box -->
+          <div class="delay-section-box">
+            <div class="delay-header">
+              <div>
+                <div style="font-size:0.88rem; font-weight:800; color:var(--text-white);">المزامنة اليدوية (Audio Delay)</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">تتم مزامنة مصدر الصوت المستقل يدوياً عبر موضع تشغيل مشغل Media3 الثاني</div>
+              </div>
+              <div id="delay-value-label" class="delay-value-display">+0 ms</div>
+            </div>
+            
+            <div class="delay-buttons-row">
+              <button id="delay-minus-500" class="delay-step-btn focusable">-500ms</button>
+              <button id="delay-minus-100" class="delay-step-btn focusable">-100ms</button>
+              <button id="delay-reset" class="delay-reset-btn focusable">إعادة ضبط (0ms)</button>
+              <button id="delay-plus-100" class="delay-step-btn focusable">+100ms</button>
+              <button id="delay-plus-500" class="delay-step-btn focusable">+500ms</button>
+            </div>
+          </div>
+
+          <!-- Audio Channel Picker with Search -->
+          <div class="audio-source-picker-section">
+            <div class="audio-source-picker-header">
+              <span class="audio-source-picker-title">اختر قناة صوتية مستقلة من مجموعات beIN SPORTS أو ALWAN</span>
+              <input type="text" id="audio-src-filter" class="col-search-box focusable audio-source-search" placeholder="بحث في القنوات..." />
+            </div>
+            <div id="audio-channels-list" class="audio-channel-picker">
+              <!-- Rendered channel list for audio source selection -->
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button id="btn-ext-audio-done" class="action-btn focusable" style="background:var(--selected-item-bg); border-color:var(--focus-blue); color:var(--text-white);">
+            إغلاق النافذة
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL 2: EPG (دليل البرامج)
+         ====================================================================== -->
+    <div id="modal-epg" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            <span id="epg-modal-channel-name">دليل البرامج</span>
+          </div>
+          <button id="close-epg" class="modal-close-btn focusable">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="epg-timeline-box">
+            <div class="epg-card-curr">
+              <span class="epg-badge-live">يُعرض الآن</span>
+              <div id="epg-curr-title" class="epg-title">لا تتوفر بيانات EPG حتى يتم اختيار قناة</div>
+              <div id="epg-curr-time" style="font-size:0.8rem; color:var(--accent-gold); font-weight:700;">—</div>
+              <div id="epg-curr-desc" class="epg-desc">لا تتوفر تفاصيل البرنامج من الخادم.</div>
+              <div class="epg-progress-bar">
+                <div id="epg-progress-percent" class="epg-progress-fill" style="width:0%;"></div>
+              </div>
+            </div>
+
+            <div style="background:var(--bg-screen); border:1px solid var(--border-panel); border-radius:12px; padding:12px 16px;">
+              <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">البرنامج التالي:</div>
+              <div id="epg-next-title" style="font-size:0.95rem; font-weight:800; color:var(--text-white); margin-top:2px;">لا تتوفر بيانات للبرنامج التالي</div>
+              <div id="epg-next-time" style="font-size:0.78rem; color:var(--text-silver); margin-top:2px;">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="close-epg-footer" class="action-btn focusable" style="background:var(--selected-item-bg); border-color:var(--focus-blue); color:var(--text-white);">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL 3: PROFILE (الملف الشخصي والاشتراك)
+         ====================================================================== -->
+    <div id="modal-profile" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <span>معلومات المشترك والاشتراك</span>
+          </div>
+          <button id="close-profile" class="modal-close-btn focusable">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div style="background:var(--bg-screen); padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
+              <div style="font-size:0.75rem; color:var(--text-muted);">اسم المستخدم:</div>
+              <div id="profile-user-name" style="font-size:0.95rem; font-weight:800; color:var(--text-white);">—</div>
+            </div>
+            <div style="background:var(--bg-screen); padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
+              <div style="font-size:0.75rem; color:var(--text-muted);">حالة الاشتراك:</div>
+              <div id="profile-package" style="font-size:0.95rem; font-weight:800; color:var(--accent-gold);">—</div>
+            </div>
+            <div style="background:var(--bg-screen); padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
+              <div style="font-size:0.75rem; color:var(--text-muted);">رقم المشترك (ID):</div>
+              <div id="profile-user-id" style="font-size:0.95rem; font-weight:800; color:var(--text-white); direction:ltr;">—</div>
+            </div>
+            <div style="background:var(--bg-screen); padding:12px; border-radius:10px; border:1px solid var(--border-panel);">
+              <div style="font-size:0.75rem; color:var(--text-muted);">تاريخ الانتهاء:</div>
+              <div id="profile-expiry" style="font-size:0.95rem; font-weight:800; color:var(--success-green);">—</div>
+            </div>
+          </div>
+          <div style="background:var(--surface-panel); padding:12px; border-radius:10px; border:1px solid var(--border-panel); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.85rem;">حالة اتصال الخادم (Server Ping):</span>
+            <span id="profile-server-status" style="font-size:0.85rem; font-weight:800; color:var(--text-muted);">—</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="close-profile-footer" class="action-btn focusable" style="background:var(--selected-item-bg); color:var(--text-white);">تم</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL 4: SETTINGS & XTREAM CONFIG (الإعدادات ومصادر IPTV)
+         ====================================================================== -->
+    <div id="modal-settings" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            <span>إعدادات SONIX TV</span>
+          </div>
+          <button id="close-settings" class="modal-close-btn focusable">&times;</button>
+        </div>
+        <div class="modal-body settings-body">
+          <section class="settings-section">
+            <div class="settings-section-heading">تشغيل الفيديو</div>
+            <label class="settings-row" for="settings-quality">
+              <span><strong>جودة الفيديو الافتراضية</strong><small>تُطبق عند بدء تشغيل المحتوى</small></span>
+              <select id="settings-quality" class="settings-select focusable">
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+                <option value="480">480p</option>
+              </select>
+            </label>
+            <label class="settings-row" for="settings-subtitles">
+              <span><strong>تفعيل الترجمة افتراضياً</strong><small>يمكن تغييرها أثناء المشاهدة</small></span>
+              <input id="settings-subtitles" class="settings-switch focusable" type="checkbox">
+            </label>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">تخصيص المحتوى</div>
+            <label class="settings-row" for="settings-favorites-first">
+              <span><strong>إظهار المفضلة أولاً</strong><small>داخل قائمة جميع العناصر</small></span>
+              <input id="settings-favorites-first" class="settings-switch focusable" type="checkbox">
+            </label>
+            <label class="settings-row" for="settings-remember-section">
+              <span><strong>تذكر آخر قسم</strong><small>استعادة القسم عند فتح شاشة المحتوى</small></span>
+              <input id="settings-remember-section" class="settings-switch focusable" type="checkbox">
+            </label>
+            <label class="settings-row" for="settings-remember-item">
+              <span><strong>تذكر آخر عنصر محدد</strong><small>استعادة التحديد دون تشغيل تلقائي</small></span>
+              <input id="settings-remember-item" class="settings-switch focusable" type="checkbox">
+            </label>
+          <section class="settings-section">
+            <div class="settings-section-heading">محرك تشغيل الفيديو</div>
+            <label class="settings-row" for="settings-video-engine">
+              <span><strong>محرك تشغيل الفيديو</strong><small>اختر محرك فك الترميز وتشغيل البث المناسب لجهازك</small></span>
+              <select id="settings-video-engine" class="settings-select focusable">
+                <option value="auto">تلقائي (موصى به) — اختيار المحرك الأنسب تلقائياً</option>
+                <option value="media3">Media3 / ExoPlayer — المحرك الأساسي المستقر للأندرويد</option>
+                <option value="mpv">libmpv — محرك احترافي بديل يدعم صيغاً وترميزات واسعة</option>
+              </select>
+            </label>
+            <div class="settings-note" id="settings-video-engine-note">يتم تطبيق التغيير على جلسات التشغيل الجديدة دون مقاطعة المشاهدة الحالية.</div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">المظهر</div>
+            <label class="settings-row" for="settings-text-scale">
+              <span><strong>حجم النصوص والواجهة</strong><small>تغيير حجم عناصر الواجهة المعتمدة على القياسات النسبية</small></span>
+              <select id="settings-text-scale" class="settings-select focusable">
+                <option value="90">صغير</option>
+                <option value="100">متوسط</option>
+                <option value="110">كبير</option>
+                <option value="120">كبير جداً</option>
+              </select>
+            </label>
+            <div class="settings-note">واجهة SONIX TV تستخدم الوضع الداكن افتراضياً.</div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">الإضافات والترجمة</div>
+            <div class="settings-row">
+              <span><strong>Addons</strong><small>تصفح الإضافات الرسمية والمجتمعية وثبّتها وأدرها</small></span>
+              <button id="settings-open-addons" class="action-btn focusable settings-action-primary">فتح الإضافات</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">الاشتراك والتحديث</div>
+            <div class="settings-actions">
+              <button id="settings-refresh" class="action-btn focusable settings-action-primary">تحديث بيانات الاشتراك والقوائم</button>
+              <button id="settings-account" class="action-btn focusable settings-action-secondary">عرض معلومات الاشتراك</button>
+            </div>
+            <div class="settings-note">يتم التحديث من حساب IPTV المحفوظ. يلزم تسجيل الدخول أولاً.</div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-heading">إدارة اشتراك IPTV</div>
+            <select id="iptv-server-url" class="search-input focusable" style="border-radius:8px;" aria-label="اختار السيرفر" disabled><option value="" selected>اختار السيرفر</option></select>
+            <div class="settings-credentials-row">
+              <input type="text" id="iptv-username" class="search-input focusable" style="border-radius:8px;" placeholder="اسم المستخدم (Username)" />
+              <input type="password" id="iptv-password" class="search-input focusable" style="border-radius:8px;" placeholder="كلمة المرور (Password)" />
+            </div>
+            <button id="btn-save-iptv" class="action-btn focusable settings-action-primary">حفظ واختبار الاتصال</button>
+          </section>
+        </div>
+        <div class="modal-footer">
+          <button id="close-settings-footer" class="action-btn focusable" style="background:var(--selected-item-bg); color:var(--text-white);">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stremio Addons Marketplace -->
+    <div id="modal-addons" class="modal-backdrop">
+      <div class="modal-window addons-window">
+        <div class="modal-header">
+          <div class="modal-title"><span>Addons</span></div>
+          <button class="modal-close-btn focusable" onclick="closeAllModals()">&times;</button>
+        </div>
+        <div class="modal-body addons-body">
+          <input id="addons-search" class="search-input focusable" type="search" placeholder="البحث عن إضافة..." />
+          <div class="addons-manifest-row" id="addons-manifest-row" hidden>
+            <input id="addons-manifest-url" class="search-input focusable" type="url" placeholder="رابط Manifest لإضافة أخرى" />
+            <button id="addons-install-url" class="action-btn focusable settings-action-primary">تثبيت من الرابط</button>
+          </div>
+          <div class="addons-tabs" role="tablist">
+            <button class="addons-tab focusable active" data-addon-tab="installed">المثبتة</button>
+            <button class="addons-tab focusable" data-addon-tab="official">الرسمية</button>
+            <button class="addons-tab focusable" data-addon-tab="community">المجتمع</button>
+            <button id="addons-refresh" class="addons-refresh focusable" title="تحديث السوق">↻</button>
+          </div>
+          <div id="addons-status" class="settings-note" aria-live="polite"></div>
+          <div id="addons-list" class="addons-list"></div>
+        </div>
+        <div class="modal-footer"><button class="action-btn focusable settings-action-secondary" onclick="closeAllModals()">إغلاق</button></div>
+      </div>
+    </div>
+
+    <!-- Subtitle Search and Appearance -->
+    <div id="modal-subtitles" class="modal-backdrop" aria-hidden="true">
+      <div class="modal-window subtitles-window" role="dialog" aria-modal="true" aria-label="إعدادات وترجمة الفيديو">
+        <div class="modal-header subtitles-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" style="color:var(--accent-gold);flex-shrink:0;">
+              <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/>
+            </svg>
+            <span>الترجمة</span>
+          </div>
+          <button class="modal-close-btn focusable" aria-label="إغلاق" onclick="closeAllModals()">&times;</button>
+        </div>
+        <div class="modal-body subtitles-body">
+          <div class="subtitle-media-banner">
+            <div class="subtitle-banner-row">
+              <span class="subtitle-banner-label">المحتوى:</span>
+              <span id="subtitle-content-title" class="subtitle-banner-title">المحتوى الحالي</span>
+            </div>
+            <div class="subtitle-banner-row" style="margin-top:4px;">
+              <span class="subtitle-banner-label">الحالة:</span>
+              <span id="subtitle-active-track-badge" class="subtitle-active-track-badge">لا توجد ترجمة مفعّلة</span>
+            </div>
+          </div>
+
+          <div class="subtitle-top-actions">
+            <button id="subtitle-toggle-power" class="action-btn focusable subtitle-power-btn" title="تفعيل أو إيقاف عرض الترجمة">
+              <svg class="subtitle-btn-icon" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+              </svg>
+              <span id="subtitle-toggle-power-text">إيقاف الترجمة</span>
+            </button>
+            <button id="subtitle-add-file" class="action-btn focusable subtitle-add-btn" title="اختيار ملف ترجمة من الذاكرة الداخلية">
+              <svg class="subtitle-btn-icon" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+              </svg>
+              <span>إضافة ملف ترجمة</span>
+            </button>
+          </div>
+          <div class="subtitle-formats-note">صيغ مدعومة: SRT, VTT, SSA, ASS, TTML, XML (تدعم ملفات GZIP المضغوطة وترميز Windows-1256 العربي)</div>
+
+          <div class="subtitle-online-section">
+            <div class="subtitle-section-header">
+              <span class="subtitle-section-title">البحث عبر الإنترنت</span>
+              <div class="subtitle-language-list" id="subtitle-language-list">
+                <button class="subtitle-language focusable" data-subtitle-language="all">الكل</button>
+                <button class="subtitle-language focusable" data-subtitle-language="en">English</button>
+                <button class="subtitle-language focusable active" data-subtitle-language="ar">عربي</button>
+                <button class="subtitle-language focusable" data-subtitle-language="ur">Urdu</button>
+                <button class="subtitle-language focusable" data-subtitle-language="hi">Hindi</button>
+                <button class="subtitle-language focusable" data-subtitle-language="es">Español</button>
+                <button class="subtitle-language focusable" data-subtitle-language="fr">Français</button>
+                <button class="subtitle-language focusable" data-subtitle-language="de">Deutsch</button>
+                <button class="subtitle-language focusable" data-subtitle-language="pt">Português</button>
+                <button class="subtitle-language focusable" data-subtitle-language="it">Italiano</button>
+                <button class="subtitle-language focusable" data-subtitle-language="tr">Türkçe</button>
+                <button class="subtitle-language focusable" data-subtitle-language="ru">Русский</button>
+              </div>
+            </div>
+            <button id="subtitle-search-button" class="action-btn focusable settings-action-primary subtitle-search-button">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style="margin-left:6px;">
+                <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+              <span>بحث عن الترجمة للمحتوى</span>
+            </button>
+            <div id="subtitle-search-status" class="settings-note" aria-live="polite">اختر اللغة ثم ابحث عن الترجمة عبر الإضافات المثبتة.</div>
+            <div id="subtitle-results" class="subtitle-results"></div>
+          </div>
+
+          <div class="subtitle-style-section">
+            <div class="settings-section-heading">تخصيص مظهر الترجمة</div>
+            <label class="settings-row" for="subtitle-font"><span><strong>نوع الخط</strong></span>
+              <select id="subtitle-font" class="settings-select focusable">
+                <option>Reem Kufi</option><option>Aref Ruqaa</option><option>Lalezar</option><option>Amiri</option>
+                <option>Rakkas</option><option>Marhey</option><option>Noto Naskh</option><option>Changa</option><option>Noto Kufi</option><option>Lemonada</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-size"><span><strong>حجم الخط</strong></span>
+              <select id="subtitle-size" class="settings-select focusable">
+                <option value="18">صغير</option><option value="22">متوسط (أصغر)</option><option value="24">متوسط</option><option value="26">كبير</option><option value="32">كبير جداً</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-color"><span><strong>لون الخط</strong></span>
+              <select id="subtitle-color" class="settings-select focusable">
+                <option value="#FFFFFF">أبيض</option><option value="#FFFF00">أصفر</option><option value="#00FFFF">سماوي</option><option value="#00FF66">أخضر</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-background"><span><strong>خلفية الترجمة</strong></span>
+              <select id="subtitle-background" class="settings-select focusable">
+                <option value="off">إيقاف</option><option value="translucent">شفافة</option><option value="solid">سوداء</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-outline"><span><strong>حدود النص والظل</strong></span>
+              <select id="subtitle-outline" class="settings-select focusable">
+                <option value="none">بدون</option><option value="shadow">ظل ناعم</option><option value="outline">حدود قوية</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-position"><span><strong>موضع الترجمة</strong></span>
+              <select id="subtitle-position" class="settings-select focusable">
+                <option value="bottom">أسفل</option><option value="raised">مرتفعة</option><option value="middle">منتصف الشاشة</option>
+              </select>
+            </label>
+            <label class="settings-row" for="subtitle-delay"><span><strong>توقيت الترجمة (مزامنة)</strong></span>
+              <select id="subtitle-delay" class="settings-select focusable">
+                <option value="-5000">-5.0 ثواني</option>
+                <option value="-4000">-4.0 ثواني</option>
+                <option value="-3000">-3.0 ثواني</option>
+                <option value="-2000">-2.0 ثانية</option>
+                <option value="-1500">-1.5 ثانية</option>
+                <option value="-1000">-1.0 ثانية</option>
+                <option value="-500">-0.5 ثانية</option>
+                <option value="0" selected>0.0 ثانية (مضبوطة)</option>
+                <option value="500">+0.5 ثانية</option>
+                <option value="1000">+1.0 ثانية</option>
+                <option value="1500">+1.5 ثانية</option>
+                <option value="2000">+2.0 ثانية</option>
+                <option value="3000">+3.0 ثواني</option>
+                <option value="4000">+4.0 ثواني</option>
+                <option value="5000">+5.0 ثواني</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="action-btn focusable settings-action-secondary" onclick="closeAllModals()">إغلاق</button></div>
+      </div>
+    </div>
+
+    <div id="series-episodes-modal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal-window" role="dialog" aria-modal="true" aria-label="مواسم وحلقات المسلسل">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span class="series-modal-title-label">تشغيل الحلقات</span>
+            <span id="series-modal-series-title" class="series-modal-series-title">المسلسل</span>
+          </div>
+          <button class="modal-close-btn focusable" aria-label="إغلاق" onclick="closeAllModals()">&times;</button>
+        </div>
+        <div class="series-modal-meta">
+          <span>اختر الموسم لمشاهدة حلقاته</span>
+          <span id="series-total-episode-count"></span>
+        </div>
+        <div id="series-season-tabs" class="series-season-tabs" role="tablist" aria-label="مواسم المسلسل"></div>
+        <div class="series-episodes-section-heading">
+          <span id="series-selected-season-title">الموسم 1</span>
+          <span id="series-season-episode-count"></span>
+        </div>
+        <div id="series-episodes-list" class="series-episodes-grid" role="list" aria-label="حلقات الموسم المحدد"></div>
+        <div class="modal-footer"><button class="action-btn focusable" onclick="closeAllModals()">إغلاق</button></div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL 5: GLOBAL SEARCH (البحث العام)
+         ====================================================================== -->
+    <div id="modal-search" class="modal-backdrop">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <span>البحث الشامل في SONIX TV</span>
+          </div>
+          <button id="close-search" class="modal-close-btn focusable">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="global-search-input" class="search-input focusable" style="border-radius:10px; height:42px;" placeholder="اكتب اسم القناة أو الفيلم أو المسلسل..." />
+          <div id="global-search-results" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+            <div style="text-align:center; color:var(--text-muted); padding:20px; font-size:0.85rem;">ابدأ بالكتابة للبحث الفوري...</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="close-search-footer" class="action-btn focusable" style="background:var(--selected-item-bg); color:var(--text-white);">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL 6: POWER CONFIRMATION (تأكيد الخروج)
+         ====================================================================== -->
+    <div id="modal-power" class="modal-backdrop">
+      <div class="modal-window" style="max-width:440px;">
+        <div class="modal-header">
+          <div class="modal-title" style="color:var(--danger-red);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"/></svg>
+            <span>تأكيد إغلاق التطبيق</span>
+          </div>
+          <button id="close-power" class="modal-close-btn focusable">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+          <div style="font-size:0.95rem; font-weight:700; color:var(--text-white);">هل تريد حقاً الخروج من تطبيق SONIX TV؟</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">سيتم إيقاف جميع جلسات البث المباشر والصوت الخارجي بأمان.</div>
+        </div>
+        <div class="modal-footer" style="justify-content:center; gap:16px;">
+          <button id="btn-confirm-exit" class="action-btn focusable" style="background:var(--danger-red); color:#FFFFFF; border:none; font-weight:800; min-width:100px;">
+            نعم، خروج
+          </button>
+          <button id="btn-cancel-exit" class="action-btn focusable" style="background:var(--selected-item-bg); color:var(--text-white); min-width:100px;">
+            إلغاء
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Centered glass-style messages received from SONIX CONTROL -->
+    <div id="sonix-remote-message" class="sonix-remote-message" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sonix-remote-message-title">
+      <section class="sonix-remote-message-card">
+        <div class="sonix-remote-message-accent"></div>
+        <div class="sonix-remote-message-heading">
+          <span class="sonix-remote-message-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          </span>
+          <span class="sonix-remote-message-label">رسالة من الإدارة</span>
+        </div>
+        <h2 id="sonix-remote-message-title" hidden></h2>
+        <p id="sonix-remote-message-body" hidden></p>
+        <button id="sonix-remote-message-close" class="focusable" type="button">حسناً</button>
+      </section>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-msg">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--focus-blue)" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+      <span id="toast-text">تمت العملية بنجاح</span>
+    </div>
+
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT ARCHITECTURE
+       ========================================================================== -->
+  <script src="app.js"></script>
+  <script src="addons-subtitles.js"></script>
+</body>
+</html>
